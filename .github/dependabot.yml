@@ -1,6 +1,8 @@
 # Weekly dependency updates, as PRs against development (main is only updated
 # by merging development). Minor and patch bumps come grouped in one PR per
 # ecosystem; majors (a Spring Boot or Java bump) come alone, to be read first.
+# A release is only offered once it has been out for a week (cooldown), so a
+# hijacked or broken release has time to be noticed and pulled first.
 version: 2
 updates:
   - package-ecosystem: maven
@@ -8,6 +10,8 @@ updates:
     target-branch: development
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     groups:
       maven-minor-and-patch:
@@ -23,6 +27,8 @@ updates:
     target-branch: development
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     groups:
       actions:
         update-types: ["minor", "patch"]
@@ -34,6 +40,8 @@ updates:
     target-branch: development
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     ignore:
       - dependency-name: "eclipse-temurin"
         update-types: ["version-update:semver-major"]
