@@ -12,6 +12,11 @@ updates:
     groups:
       maven-minor-and-patch:
         update-types: ["minor", "patch"]
+    # OpenJFX stays on 25, the same line as the JDK (docs/DESIGN.md §20.2):
+    # only its minor and patch updates are offered.
+    ignore:
+      - dependency-name: "org.openjfx:*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
@@ -22,9 +27,13 @@ updates:
       actions:
         update-types: ["minor", "patch"]
 
-  # The Temurin base images in the Dockerfile (pinned to exact tags)
+  # The Temurin base images in the Dockerfile (pinned to exact tags). Java
+  # stays on the 25 LTS: only updates within 25 are offered.
   - package-ecosystem: docker
     directory: "/"
     target-branch: development
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "eclipse-temurin"
+        update-types: ["version-update:semver-major"]
