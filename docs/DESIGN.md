@@ -967,7 +967,7 @@ Trámites (en paralelo, son lo más lento):
 - [x] Hasta tener el programa completo y probado, se acepta que TikTok y YouTube no sean automáticos de punta a punta (*R3*).
 - [x] Nombre: **ClipHive**; un dominio propio en Cloudflare con dos subdominios de un nivel, uno para el superadmin y otro para los medios (en los ejemplos, `cliphive.example.com` y `cliphive-media.example.com`; §3.2).
 - [x] **Java 25**, licencia **Apache-2.0**.
-- [x] **Spring Boot 4.0.7** (compatible con Java 17–25). Trae **Jackson 3** por defecto (`tools.jackson.*`); `protocol` lo usa para `ProtocolCodec` — ver `protocol/README.md` para el detalle de paquetes.
+- [x] **Spring Boot 4.1** (4.1.2; cambio de 2026-10, antes 4.0.7: la rama 4.0 se queda sin soporte gratuito). Se fija a una versión exacta en el `pom.xml` raíz y Dependabot propone los parches. Trae **Jackson 3** por defecto (`tools.jackson.*`); `protocol` lo usa para `ProtocolCodec` — ver `protocol/README.md` para el detalle de paquetes.
 - [x] Herramienta de build: **Maven** (multimódulo, con Maven Wrapper).
 - [x] **Duración máxima del vídeo fuente: 2 horas** (configurable en Ajustes, `video.max-duration-s`); los enlaces más largos se rechazan en la validación con el motivo.
 - [x] **Aviso por email** cuando quedan menos de X clips pendientes de publicar (umbral y destinatario configurables; SMTP por variables de entorno).
