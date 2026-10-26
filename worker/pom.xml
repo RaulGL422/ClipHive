@@ -23,7 +23,7 @@
 
     <properties>
         <!-- OpenJFX 25 — docs/DESIGN.md §20.2 (resolved) -->
-        <javafx.version>25</javafx.version>
+        <javafx.version>27.0.1</javafx.version>
     </properties>
 
     <dependencies>
