@@ -137,7 +137,7 @@
         <dependency>
             <groupId>io.zonky.test</groupId>
             <artifactId>embedded-postgres</artifactId>
-            <version>2.0.7</version>
+            <version>2.2.2</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -150,7 +150,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.6.0</version>
+                <version>3.6.2</version>
                 <executions>
                     <execution>
                         <id>embedded-test-sources</id>
@@ -191,7 +191,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.1</version>
+                <version>3.16.0</version>
                 <configuration>
                     <annotationProcessorPaths>
                         <path>
@@ -239,7 +239,7 @@
                 <dependency>
                     <groupId>io.zonky.test</groupId>
                     <artifactId>embedded-postgres</artifactId>
-                    <version>2.0.7</version>
+                    <version>2.2.2</version>
                     <scope>compile</scope>
                 </dependency>
             </dependencies>
