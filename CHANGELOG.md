@@ -8,6 +8,9 @@ Releases page; their notes are kept below.
 
 ## [Unreleased]
 
+### Changed
+- Server: Spring Boot 4.1.2 (from 4.0.7), with patch updates of the Maven build plugins and embedded-postgres.
+
 ## server-v0.1.0 and worker-v0.1.7 (2026-10-26)
 
 The first public release, and the first versioned release of the server: before it, the server was built
