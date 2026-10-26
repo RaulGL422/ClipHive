@@ -8,6 +8,11 @@ Releases page; their notes are kept below.
 
 ## [Unreleased]
 
+### Added
+- `demo` profile for the embedded server: made-up jobs, clips, publications, statistics and workers to look
+  around a superadmin that isn't empty (`run-server.ps1 -Mode demo`). It never reaches the production jar, and
+  turns off every schedule that could act on the data. README screenshots come from it.
+
 ### Changed
 - Server: Spring Boot 4.1.2 (from 4.0.7), with patch updates of the Maven build plugins and embedded-postgres.
 

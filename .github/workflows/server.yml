@@ -69,7 +69,7 @@ jobs:
           mkdir -p dist
           cp "server/target/server-$VERSION.jar" "dist/cliphive-server-$VERSION.jar"
           # The production jar must never carry the embedded profile (DESIGN.md §13.1).
-          if unzip -l "dist/cliphive-server-$VERSION.jar" | grep -q -E 'application-embedded|EmbeddedDataSourceConfig'; then
+          if unzip -l "dist/cliphive-server-$VERSION.jar" | grep -q -E 'application-embedded|application-demo|db/demo/|EmbeddedDataSourceConfig'; then
             echo "::error::the embedded profile is in the production jar"; exit 1
           fi
           (cd dist && sha256sum "cliphive-server-$VERSION.jar" > "cliphive-server-$VERSION.jar.sha256")

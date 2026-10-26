@@ -88,6 +88,20 @@ class StartupConfigCheckTest {
                 .hasMessageContaining("-Pembedded");
     }
 
+    @Test
+    void the_demo_profile_only_runs_with_the_embedded_one() {
+        var check = new StartupConfigCheck();
+        var demoOnRealDb = complete();
+        demoOnRealDb.setActiveProfiles("dev", "demo");
+        assertThatThrownBy(() -> check.onApplicationEvent(event(demoOnRealDb)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("only runs together with 'embedded'");
+
+        var demo = new MockEnvironment();
+        demo.setActiveProfiles("embedded", "demo");
+        assertThatCode(() -> check.onApplicationEvent(event(demo))).doesNotThrowAnyException();
+    }
+
     private static ApplicationEnvironmentPreparedEvent event(MockEnvironment env) {
         return new ApplicationEnvironmentPreparedEvent(new DefaultBootstrapContext(),
                 new SpringApplication(), new String[0], env);

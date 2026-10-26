@@ -54,6 +54,11 @@ public class StartupConfigCheck implements ApplicationListener<ApplicationEnviro
     @Override
     public void onApplicationEvent(ApplicationEnvironmentPreparedEvent event) {
         Environment env = event.getEnvironment();
+        // The demo's made-up data belongs only in the throwaway embedded database (§13.1)
+        if (env.acceptsProfiles(Profiles.of("demo & !embedded"))) {
+            throw new IllegalStateException("The 'demo' profile only runs together with 'embedded' "
+                    + "(--spring.profiles.active=embedded,demo): its made-up data must never reach a real database");
+        }
         if (env.acceptsProfiles(Profiles.of("embedded"))) {
             if (ClassUtils.isPresent(embeddedConfigClass, StartupConfigCheck.class.getClassLoader())) return;
             throw new IllegalStateException("The 'embedded' profile is not in this build: it is only for local tries, "

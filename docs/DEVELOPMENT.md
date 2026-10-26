@@ -82,6 +82,8 @@ java -jar server/target/server-0.1.0-SNAPSHOT.jar --spring.profiles.active=embed
 
 Then open `http://localhost:8080/login` (or your port).
 
+**Sample data (`demo` profile).** Add `demo` to see a superadmin that isn't empty: `-Dspring-boot.run.profiles=embedded,demo` (or `--spring.profiles.active=embedded,demo` for the jar). It loads made-up jobs in several states, published clips with statistics, scheduled publications, three connected accounts, two workers and log entries: the data behind the README screenshots. It's a repeatable Flyway migration, [`server/src/embedded/resources/db/demo/R__demo_data.sql`](../server/src/embedded/resources/db/demo/R__demo_data.sql), with dates relative to the start, so it ships only where `embedded` does. Nothing acts on it: the accounts' tokens are placeholders, and the profile turns off the planner, publishing, statistics, alerts and cleanup schedules, so no platform is called and no email is sent. Started without `embedded` (with `dev`, say), the server stops at once, so the made-up data can't reach a real database. Clip videos can't be played, because there are no files. `DemoDataTest` loads it in CI, so a schema change that breaks it fails the build.
+
 The `dev` profile (`-Dspring-boot.run.profiles=dev`) uses a real PostgreSQL, with debug logging and a non-`Secure` session cookie so plain-HTTP localhost logins work. Unlike `embedded`, it **does** go through the startup configuration check, so it needs every variable that check requires: `CLIPHIVE_DB_URL`, `CLIPHIVE_DB_USER`, an absolute `CLIPHIVE_DATA_DIR`, `CLIPHIVE_URL_SIGNING_KEY` (32+ characters) and `CLIPHIVE_ENCRYPTION_KEY` (Base64 of 32 bytes), plus `CLIPHIVE_DB_PASSWORD` for your database ([DEPLOY.md §6](DEPLOY.md#6-configure-env)).
 
 **`.env` is not read by `spring-boot:run`** (nor by `java -jar`): Spring Boot only sees real environment variables. Export them in your shell first, for example in Git Bash or Linux `set -a; . ./.env; set +a`, or use `run-server.ps1 -Mode normal` on Windows, which loads `.env` for you.
@@ -90,6 +92,7 @@ On Windows, **`run-server.ps1`** does all of this: it finds a JDK 25 (in `~/.jdk
 
 ```powershell
 .\run-server.ps1                # embedded profile (default); ignores .env
+.\run-server.ps1 -Mode demo     # embedded + the demo sample data
 .\run-server.ps1 -Mode normal   # real PostgreSQL; loads <repo>/.env (variables already set win)
                                 # and stops if CLIPHIVE_DB_URL, CLIPHIVE_DB_USER, CLIPHIVE_DATA_DIR
                                 # or either key is missing

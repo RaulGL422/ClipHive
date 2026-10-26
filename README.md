@@ -1,12 +1,18 @@
 # ClipHive
 
+[![Build and Test](https://github.com/RaulGL422/ClipHive/actions/workflows/ci.yml/badge.svg?branch=development)](https://github.com/RaulGL422/ClipHive/actions/workflows/ci.yml)
+[![Server release](https://img.shields.io/github/v/release/RaulGL422/ClipHive?filter=server-v*&label=server)](https://github.com/RaulGL422/ClipHive/releases)
+[![Worker release](https://img.shields.io/github/v/release/RaulGL422/ClipHive?filter=worker-v*&label=worker)](https://github.com/RaulGL422/ClipHive/releases)
 ![Java](https://img.shields.io/badge/Java-25-blue)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4-6db33f)
 ![License](https://img.shields.io/badge/license-Apache--2.0-green)
 ![Status](https://img.shields.io/badge/status-beta-orange)
 
 > [Leer en español](README.es.md)
 
 **ClipHive turns a video link into short vertical clips with word-by-word karaoke subtitles, and publishes them to TikTok, Instagram Reels and YouTube Shorts on a schedule.** It's self-hosted and cross-platform (Linux and Windows): a small server — a Raspberry Pi is enough — coordinates everything, and one or more PCs with a GPU do the transcription and rendering.
+
+![The superadmin dashboard: recent jobs in several states and the activity log](docs/images/superadmin-dashboard.png)
 
 ## Why
 
@@ -60,6 +66,27 @@ flowchart LR
 
 The full story — components, the pipeline step by step, fault tolerance, the WebSocket protocol, publishing and security — is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+## Screenshots
+
+The superadmin (Thymeleaf + HTMX, in Spanish), running locally with the made-up sample data of the `demo` profile: every job, clip, account and number below is invented.
+
+| Job detail: clips, publications and tasks | Statistics per platform |
+|---|---|
+| ![A job's clips with their titles, the publications on each platform and the finished tasks](docs/images/superadmin-job-detail.png) | ![Subscribers over time, channel views and the most viewed clips](docs/images/superadmin-stats.png) |
+| **Publication queue** | **On a phone** |
+| ![Scheduled publications with publish now, reschedule and download actions](docs/images/superadmin-publications.png) | <img src="docs/images/superadmin-mobile-stats.png" alt="The statistics page at phone width" width="260"> |
+
+## Technical highlights
+
+- **Java 25 and Spring Boot 4** in a three-module Maven build: `protocol` holds only the wire contract shared by `server` and `worker`, with no logic.
+- **A work queue in PostgreSQL**: workers claim tasks with `SELECT … FOR UPDATE SKIP LOCKED`, and every task carries an attempt number (fencing), so a worker that comes back after being given up for dead can't overwrite the newer run.
+- **A versioned WebSocket protocol** between server and workers: a worker with an incompatible version is refused with a message telling the user to update.
+- **External tools handled defensively**: yt-dlp, ffmpeg, whisper.cpp and Claude Code run as processes with argument lists (never through a shell), timeouts and cancellation, and Claude's proposals are validated by the server before they're used.
+- **Security**: BCrypt passwords plus TOTP 2FA and a login lockout, OAuth tokens encrypted with AES-GCM, HMAC-signed expiring media URLs, and one listener per role (admin, media, workers) with a filter that keeps each to its own routes.
+- **Packaging**: a multi-arch Docker image (amd64 and arm64) on GHCR, and a Windows MSI built with jlink and jpackage that bundles an LGPL ffmpeg build and a Vulkan whisper.cpp, with every third-party licence checked in CI.
+- **Tests**: more than 500 JUnit tests, including integration tests that boot the full context on an embedded PostgreSQL, apply every Flyway migration and validate every entity, plus ffmpeg render tests in CI.
+- **Design written down first**: [docs/DESIGN.md](docs/DESIGN.md) records the architecture and every decision, and changes there go in before the code.
+
 ## Repository layout
 
 ```
@@ -79,7 +106,7 @@ ClipHive/
 2. **Install a worker** on a Windows PC with a GPU from the MSI on the [Releases](../../releases) page: [docs/INSTALL-WORKER.md](docs/INSTALL-WORKER.md).
 3. **Connect your accounts and submit a link** in the superadmin: [docs/USER-GUIDE.md](docs/USER-GUIDE.md).
 
-Just want to look around or hack on it? With JDK 25 installed, run the server locally with an embedded throwaway database: `./mvnw install -DskipTests` once, then `./mvnw spring-boot:run -pl server -Pembedded -Dspring-boot.run.profiles=embedded` (or `.\run-server.ps1` on Windows), and log in at `http://localhost:8080/login` with `admin` / `admin123`. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+Just want to look around or hack on it? With JDK 25 installed, run the server locally with an embedded throwaway database and the sample data from the screenshots: `./mvnw install -DskipTests` once, then `./mvnw spring-boot:run -pl server -Pembedded -Dspring-boot.run.profiles=embedded,demo` (or `.\run-server.ps1 -Mode demo` on Windows), and log in at `http://localhost:8080/login` with `admin` / `admin123`. Leave out `demo` to start empty. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Requirements
 

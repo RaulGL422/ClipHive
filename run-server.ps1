@@ -3,20 +3,23 @@
     Arranca ClipHive Server.
 .DESCRIPTION
     embedded (defecto) — Postgres volátil embebido. No necesita variables de entorno.
-    normal             — Postgres real. Si existe un .env en la raíz del repo, lo
+    demo               — embedded con datos inventados (trabajos, clips, publicaciones,
+                         estadísticas) para ver el superadmin con contenido.
+    normal           — Postgres real. Si existe un .env en la raíz del repo, lo
                          carga en el entorno del proceso (sin pisar variables ya
                          definidas; los valores vacíos se ignoran). Requiere
                          CLIPHIVE_DB_URL, CLIPHIVE_DB_USER, CLIPHIVE_DATA_DIR,
                          CLIPHIVE_URL_SIGNING_KEY y CLIPHIVE_ENCRYPTION_KEY
                          (las mismas que comprueba el servidor al arrancar).
 .PARAMETER Mode
-    "embedded" (default) o "normal"
+    "embedded" (default), "demo" o "normal"
 .EXAMPLE
     .\run-server.ps1
+    .\run-server.ps1 -Mode demo
     .\run-server.ps1 -Mode normal
 #>
 param(
-    [ValidateSet("embedded", "normal")]
+    [ValidateSet("embedded", "demo", "normal")]
     [string]$Mode = "embedded"
 )
 
@@ -137,13 +140,15 @@ if ($Mode -eq "normal") {
 $env:JAVA_HOME = $javaHome
 
 $runArgs = @("-f", "$root\pom.xml", "spring-boot:run", "-pl", "server")
-if ($Mode -eq "embedded") {
-    # -Pembedded adds src/embedded (embedded Postgres, test admin), which the production jar doesn't carry
+if ($Mode -ne "normal") {
+    # -Pembedded adds src/embedded (embedded Postgres, test admin, demo data), which the production jar doesn't carry
     $runArgs += "-Pembedded"
-    $runArgs += "-Dspring-boot.run.profiles=embedded"
+    $runArgs += $(if ($Mode -eq "demo") { "-Dspring-boot.run.profiles=embedded,demo" } else { "-Dspring-boot.run.profiles=embedded" })
 }
 
-$dbInfo = if ($Mode -eq "embedded") { "Postgres embebido (volátil)" } else { $env:CLIPHIVE_DB_URL }
+$dbInfo = if ($Mode -eq "normal") { $env:CLIPHIVE_DB_URL }
+          elseif ($Mode -eq "demo") { "Postgres embebido (volátil) con datos de demo" }
+          else { "Postgres embebido (volátil)" }
 
 Write-Host ""
 Write-Host "  ClipHive Server — modo $Mode"

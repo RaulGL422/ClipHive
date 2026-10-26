@@ -1,12 +1,18 @@
 # ClipHive
 
+[![Build and Test](https://github.com/RaulGL422/ClipHive/actions/workflows/ci.yml/badge.svg?branch=development)](https://github.com/RaulGL422/ClipHive/actions/workflows/ci.yml)
+[![Release del servidor](https://img.shields.io/github/v/release/RaulGL422/ClipHive?filter=server-v*&label=servidor)](https://github.com/RaulGL422/ClipHive/releases)
+[![Release del worker](https://img.shields.io/github/v/release/RaulGL422/ClipHive?filter=worker-v*&label=worker)](https://github.com/RaulGL422/ClipHive/releases)
 ![Java](https://img.shields.io/badge/Java-25-blue)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4-6db33f)
 ![Licencia](https://img.shields.io/badge/licencia-Apache--2.0-green)
 ![Estado](https://img.shields.io/badge/estado-beta-orange)
 
 > [Read in English](README.md)
 
 **ClipHive convierte el enlace de un vídeo en clips verticales cortos con subtítulos karaoke palabra a palabra, y los publica de forma programada en TikTok, Instagram Reels y YouTube Shorts.** Es autoalojado y multiplataforma (Linux y Windows): un servidor pequeño —basta una Raspberry Pi— lo coordina todo, y uno o varios PC con GPU hacen la transcripción y el render.
+
+![El panel del superadmin: trabajos recientes en varios estados y el registro de actividad](docs/images/superadmin-dashboard.png)
 
 ## Por qué
 
@@ -60,6 +66,27 @@ flowchart LR
 
 La historia completa —componentes, el pipeline paso a paso, la tolerancia a fallos, el protocolo WebSocket, la publicación y la seguridad— está en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (en inglés) y, con todo el detalle y el porqué de cada decisión, en [docs/DESIGN.md](docs/DESIGN.md).
 
+## Capturas
+
+El superadmin (Thymeleaf + HTMX), en local con los datos de ejemplo del perfil `demo`: todos los trabajos, clips, cuentas y números que se ven son inventados.
+
+| Detalle de un trabajo: clips, publicaciones y tareas | Estadísticas por plataforma |
+|---|---|
+| ![Los clips de un trabajo con sus títulos, las publicaciones en cada plataforma y las tareas terminadas](docs/images/superadmin-job-detail.png) | ![Suscriptores en el tiempo, vistas del canal y los clips más vistos](docs/images/superadmin-stats.png) |
+| **Cola de publicaciones** | **En el móvil** |
+| ![Publicaciones programadas con las acciones publicar ahora, cambiar hora y descargar](docs/images/superadmin-publications.png) | <img src="docs/images/superadmin-mobile-stats.png" alt="La página de estadísticas con el ancho de un móvil" width="260"> |
+
+## Aspectos técnicos
+
+- **Java 25 y Spring Boot 4** en un build de Maven con tres módulos: `protocol` solo contiene el contrato de comunicación que comparten `server` y `worker`, sin lógica.
+- **Una cola de trabajo en PostgreSQL**: los workers reclaman tareas con `SELECT … FOR UPDATE SKIP LOCKED` y cada tarea lleva un número de intento (*fencing*), así que un worker que vuelve después de darse por perdido no puede pisar la ejecución nueva.
+- **Un protocolo WebSocket versionado** entre servidor y workers: un worker con una versión incompatible se rechaza con un mensaje que le pide actualizarse.
+- **Herramientas externas a la defensiva**: yt-dlp, ffmpeg, whisper.cpp y Claude Code se ejecutan como procesos con lista de argumentos (nunca a través de una shell), con tiempo máximo y cancelación, y el servidor valida las propuestas de Claude antes de usarlas.
+- **Seguridad**: contraseñas con BCrypt más 2FA por TOTP y bloqueo tras intentos fallidos, tokens OAuth cifrados con AES-GCM, URLs de medios firmadas con HMAC y con caducidad, y un listener por función (admin, medios, workers) con un filtro que limita cada uno a sus rutas.
+- **Empaquetado**: una imagen Docker multiarquitectura (amd64 y arm64) en GHCR y un MSI de Windows hecho con jlink y jpackage, que incluye una build LGPL de ffmpeg y whisper.cpp con Vulkan, con todas las licencias de terceros comprobadas en el CI.
+- **Tests**: más de 500 tests de JUnit, entre ellos tests de integración que arrancan el contexto completo sobre un PostgreSQL embebido, aplican todas las migraciones de Flyway y validan todas las entidades, más tests de render con ffmpeg en el CI.
+- **El diseño, por escrito y primero**: [docs/DESIGN.md](docs/DESIGN.md) recoge la arquitectura y cada decisión, y los cambios se escriben ahí antes que en el código.
+
 ## Estructura del repositorio
 
 ```
@@ -81,7 +108,7 @@ ClipHive/
 
 Las guías están en inglés; la interfaz del superadmin y del worker está en español, y las guías citan sus textos tal cual.
 
-¿Solo quieres echar un vistazo o tocar el código? Con el JDK 25 instalado, arranca el servidor en local con una base de datos embebida y desechable: `./mvnw install -DskipTests` una vez, después `./mvnw spring-boot:run -pl server -Pembedded -Dspring-boot.run.profiles=embedded` (o `.\run-server.ps1` en Windows), y entra en `http://localhost:8080/login` con `admin` / `admin123`. Más en [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+¿Solo quieres echar un vistazo o tocar el código? Con el JDK 25 instalado, arranca el servidor en local con una base de datos embebida y desechable y los datos de ejemplo de las capturas: `./mvnw install -DskipTests` una vez, después `./mvnw spring-boot:run -pl server -Pembedded -Dspring-boot.run.profiles=embedded,demo` (o `.\run-server.ps1 -Mode demo` en Windows), y entra en `http://localhost:8080/login` con `admin` / `admin123`. Sin `demo` arranca vacío. Más en [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Requisitos
 
