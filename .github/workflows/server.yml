@@ -1,0 +1,135 @@
+name: Server Release
+
+# Publishes the ClipHive server (docs/DESIGN.md §16.4, "Release del servidor"):
+#   - the production jar (no embedded profile) attached to a GitHub release
+#   - a multi-arch image (linux/amd64 + linux/arm64) on
+#     ghcr.io/raulgl422/cliphive-server, tagged with the version and `latest`
+#
+# Release: push a tag like `server-v0.1.0`. A manual run builds and tests
+# both, but publishes nothing.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'server-v*'
+
+# Read-only by default; each job asks only for what it publishes.
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/raulgl422/cliphive-server
+
+jobs:
+  jar:
+    runs-on: ubuntu-latest
+    name: Server jar
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The ffmpeg-backed tests skip themselves without it (as in ci.yml).
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Resolve version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/server-v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/server-v}"
+          else
+            VERSION="0.0.0-dev"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Version: $VERSION"
+
+      # The jar's manifest (and the startup banner) report the pom version.
+      - name: Set version
+        run: >
+          ./mvnw -B -q org.codehaus.mojo:versions-maven-plugin:2.18.0:set
+          -DnewVersion="$VERSION" -DgenerateBackupPoms=false -DprocessAllModules
+
+      # With the tests: a release is built from a tag, not only after CI passed.
+      - name: Build and test server jar
+        run: ./mvnw -B -pl server -am package
+
+      - name: Collect jar
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp "server/target/server-$VERSION.jar" "dist/cliphive-server-$VERSION.jar"
+          # The production jar must never carry the embedded profile (DESIGN.md §13.1).
+          if unzip -l "dist/cliphive-server-$VERSION.jar" | grep -q -E 'application-embedded|EmbeddedDataSourceConfig'; then
+            echo "::error::the embedded profile is in the production jar"; exit 1
+          fi
+          (cd dist && sha256sum "cliphive-server-$VERSION.jar" > "cliphive-server-$VERSION.jar.sha256")
+          ls -la dist
+
+      - name: Upload to release
+        if: startsWith(github.ref, 'refs/tags/server-v')
+        # Third-party action pinned to a commit (v2), not a movable tag.
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+        with:
+          files: dist/*
+
+  image:
+    runs-on: ubuntu-latest
+    name: Server image
+    needs: jar
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/server-v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/server-v}"
+            echo "PUSH=true" >> "$GITHUB_ENV"
+          else
+            VERSION="0.0.0-dev"
+            echo "PUSH=false" >> "$GITHUB_ENV"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      # Third-party actions pinned to commits, not movable tags.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to GHCR
+        if: env.PUSH == 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          build-args: CLIPHIVE_VERSION=${{ env.VERSION }}
+          push: ${{ env.PUSH == 'true' }}
+          tags: |
+            ${{ env.IMAGE }}:${{ env.VERSION }}
+            ${{ env.IMAGE }}:latest
+          labels: |
+            org.opencontainers.image.version=${{ env.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}

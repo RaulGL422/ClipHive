@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:insert="~{admin/_fragments/head :: head('Revisión de cortes')}"></head>
+<body>
+<div class="layout">
+  <div th:insert="~{admin/_fragments/sidebar :: sidebar('jobs')}"></div>
+  <div class="main">
+    <div class="topbar">
+      <h1>
+        <a th:href="@{/admin/jobs}" style="color:var(--text-muted);text-decoration:none">Trabajos</a>
+        /
+        <a th:href="@{/admin/jobs/{id}(id=${job.id})}" style="color:var(--text-muted);text-decoration:none"
+           th:text="${#strings.abbreviate(job.id.toString(),16)}"></a>
+        / Revisión de cortes
+      </h1>
+    </div>
+    <div class="content">
+
+      <!-- Job summary -->
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span class="badge badge-awaiting_review">AWAITING REVIEW</span>
+          <strong th:if="${job.title}" th:text="${job.title}"></strong>
+          <span th:if="${analysis != null and analysis.contentType != null}"
+                style="font-size:0.8rem;color:var(--text-muted)"
+                th:text="'Tipo: ' + ${analysis.contentType}"></span>
+          <span style="font-size:0.8rem;color:var(--text-muted)"
+                th:text="${clips.size()} + ' clip(s) propuesto(s)'"></span>
+        </div>
+      </div>
+
+      <!-- Removed segments (from Claude + SponsorBlock) -->
+      <div th:if="${analysis != null and !#lists.isEmpty(analysis.removedSegmentsJson)}"
+           class="card" style="margin-bottom:16px">
+        <div class="card-title" style="margin-bottom:12px">
+          Segmentos eliminados por Claude / SponsorBlock
+          (<span th:text="${analysis.removedSegmentsJson.size()}"></span>)
+        </div>
+        <div class="table-wrap" style="padding:0">
+          <table>
+            <thead><tr><th>Inicio</th><th>Fin</th><th>Duración</th><th>Fuente</th><th>Categoría</th></tr></thead>
+            <tbody>
+              <tr th:each="seg : ${analysis.removedSegmentsJson}">
+                <td th:text="${#numbers.formatDecimal(seg.startMs / 1000.0, 1, 'COMMA', 1, 'POINT') + 's'}"></td>
+                <td th:text="${#numbers.formatDecimal(seg.endMs   / 1000.0, 1, 'COMMA', 1, 'POINT') + 's'}"></td>
+                <td th:text="${#numbers.formatDecimal((seg.endMs - seg.startMs) / 1000.0, 1, 'COMMA', 1, 'POINT') + 's'}"></td>
+                <td><span class="badge" th:classappend="${seg.source == 'claude' ? 'badge-info' : 'badge-warn'}"
+                          th:text="${seg.source}"></span></td>
+                <td th:text="${seg.category ?: '—'}"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Clips form -->
+      <form th:action="@{/admin/jobs/{id}/review/approve(id=${job.id})}" method="post">
+
+        <div class="section-header" style="margin-bottom:12px">
+          <h2>Clips propuestos — edita títulos y descripciones</h2>
+          <p style="color:var(--text-muted);font-size:0.85rem;margin:4px 0 0">
+            Si dejas el título en blanco, Claude lo generará automáticamente al renderizar.
+          </p>
+        </div>
+
+        <div th:each="clip, idx : ${clips}" class="card" style="margin-bottom:16px">
+          <input type="hidden" name="clipId" th:value="${clip.id}"/>
+
+          <!-- Clip header -->
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+            <span class="badge badge-info" th:text="'Clip ' + (${clip.clipIndex + 1})"></span>
+            <span th:if="${!#lists.isEmpty(clip.keptRangesJson)}" style="font-size:0.85rem;color:var(--text-muted)">
+              <th:block th:with="range=${clip.keptRangesJson.get(0)}">
+                <span th:text="${#numbers.formatDecimal(range.startMs / 1000.0, 1, 'COMMA', 1, 'POINT') + 's'}"></span>
+                →
+                <span th:text="${#numbers.formatDecimal(range.endMs / 1000.0, 1, 'COMMA', 1, 'POINT') + 's'}"></span>
+              </th:block>
+            </span>
+            <span th:if="${clip.durationSeconds != null}"
+                  style="font-size:0.85rem;color:var(--text-muted)"
+                  th:text="${clip.durationSeconds} + 's'"></span>
+          </div>
+
+          <!-- Title -->
+          <div class="form-group" style="margin-bottom:10px">
+            <label th:for="'title-' + ${clip.id}">Título</label>
+            <input type="text" th:id="'title-' + ${clip.id}" name="title"
+                   th:value="${clip.title ?: ''}"
+                   maxlength="100"
+                   placeholder="Dejar en blanco para que Claude lo genere"/>
+          </div>
+
+          <!-- Description -->
+          <div class="form-group" style="margin-bottom:0">
+            <label th:for="'desc-' + ${clip.id}">Descripción</label>
+            <textarea th:id="'desc-' + ${clip.id}" name="description"
+                      rows="3" maxlength="2000"
+                      style="width:100%;resize:vertical"
+                      placeholder="Dejar en blanco para que Claude la genere"
+                      th:text="${clip.description ?: ''}"></textarea>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div th:if="${clips.empty}" class="card" style="text-align:center;color:var(--text-muted);padding:24px">
+          No hay clips planificados para este trabajo.
+        </div>
+
+        <!-- Actions -->
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+          <button type="submit" class="btn btn-primary"
+                  onclick="return confirm('¿Aprobar los cortes y continuar con el renderizado?')">
+            Aprobar y continuar renderizado
+          </button>
+          <a th:href="@{/admin/jobs/{id}(id=${job.id})}" class="btn btn-secondary">Cancelar</a>
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

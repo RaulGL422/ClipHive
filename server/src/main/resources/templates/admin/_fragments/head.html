@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title th:text="${title} + ' — ClipHive'">ClipHive Admin</title>
+  <link rel="stylesheet" th:href="@{/css/admin.css}"/>
+  <!-- CSRF for HTMX -->
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <!-- HTMX -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/2.0.4/htmx.min.js"
+          integrity="sha512-2kIcAizYXhIn8TzUvqzEDZNuDZ+aW7yE/+f1HJHXFjQcGNfv1kqzJSTBRBSlOgp6B/KZsz1K0a3ZTqP9dnxioQ=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+    document.addEventListener('htmx:configRequest', evt => {
+      const t = document.querySelector('meta[name="_csrf"]');
+      const h = document.querySelector('meta[name="_csrf_header"]');
+      if (t && h) evt.detail.headers[h.content] = t.content;
+    });
+  </script>
+</head>
+</html>

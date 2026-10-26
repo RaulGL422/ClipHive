@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:insert="~{admin/_fragments/head :: head('Cuentas')}"></head>
+<body>
+<div class="layout">
+  <div th:insert="~{admin/_fragments/sidebar :: sidebar('accounts')}"></div>
+  <div class="main">
+    <div class="topbar"><h1>Cuentas</h1></div>
+    <div class="content">
+
+      <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+      <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+      <div class="card" style="margin-bottom:16px;font-size:0.85rem;color:var(--text-muted)">
+        Cada clip renderizado se publica en todas las cuentas conectadas, con el mismo título y descripción.
+        Mientras las apps no pasen la auditoría de cada plataforma, YouTube sube los vídeos en <strong>privado</strong>
+        y TikTok como <strong>borrador</strong>: el paso a público es manual. De cada borrador de TikTok te llega un
+        email con el título y la descripción para pegarlos (destinatario de Ajustes → Avisos por email).
+      </div>
+
+      <div class="table-wrap card" style="padding:0">
+        <table>
+          <thead><tr><th>Plataforma</th><th>Cuenta</th><th>Conectada</th><th>Token caduca</th><th></th></tr></thead>
+          <tbody>
+            <tr th:each="r : ${rows}">
+              <td><strong th:text="${r.label}"></strong></td>
+              <td>
+                <span th:if="${r.account != null}" th:text="${r.account.displayName ?: r.account.externalAccountId}"></span>
+                <span th:if="${r.account == null}" style="color:var(--text-muted)">—</span>
+              </td>
+              <td th:text="${r.account != null ? #temporals.format(r.account.connectedAt,'dd/MM/yyyy HH:mm','Europe/Madrid') : '—'}"></td>
+              <td th:text="${r.account != null and r.account.expiresAt != null ? #temporals.format(r.account.expiresAt,'dd/MM HH:mm','Europe/Madrid') + ' (se renueva sola)' : '—'}"></td>
+              <td>
+                <form th:if="${r.account != null}" th:action="@{/admin/accounts/{id}/disconnect(id=${r.account.id})}" method="post">
+                  <button type="submit" class="btn btn-danger btn-sm"
+                          onclick="return confirm('¿Desconectar esta cuenta?')">Desconectar</button>
+                </form>
+                <form th:if="${r.account == null and r.configured}"
+                      th:action="@{/admin/accounts/{p}/connect(p=${r.platform.name().toLowerCase()})}" method="post">
+                  <button type="submit" class="btn btn-primary btn-sm">Conectar</button>
+                </form>
+                <span th:if="${r.account == null and !r.supported}" style="color:var(--text-muted)">Próximamente</span>
+                <span th:if="${r.account == null and r.supported and !r.configured}"
+                      style="color:var(--text-muted);font-size:0.8rem">Faltan las credenciales de la app en el <code>.env</code></span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-top:16px;font-size:0.85rem">
+        <div class="card-title" style="margin-bottom:8px">URLs de redirección OAuth</div>
+        <p style="color:var(--text-muted);margin:0 0 8px">Regístralas tal cual en la app de cada plataforma.</p>
+        <div th:each="r : ${rows}" th:if="${r.supported}">
+          <span th:text="${r.label + ': '}"></span>
+          <code th:if="${r.redirectUri != null}" th:text="${r.redirectUri}"></code>
+          <span th:if="${r.redirectUri == null}" style="color:#c62828">define CLIPHIVE_ADMIN_PUBLIC_URL en el .env</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

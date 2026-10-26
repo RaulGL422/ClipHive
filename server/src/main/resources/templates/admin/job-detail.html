@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:insert="~{admin/_fragments/head :: head('Trabajo')}"></head>
+<body>
+<div class="layout">
+  <div th:insert="~{admin/_fragments/sidebar :: sidebar('jobs')}"></div>
+  <div class="main">
+    <div class="topbar">
+      <h1>
+        <a th:href="@{/admin/jobs}" style="color:var(--text-muted);text-decoration:none">Trabajos</a>
+        / <span th:text="${#strings.abbreviate(job.id.toString(),16)}"></span>
+      </h1>
+    </div>
+    <div class="content">
+
+      <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+
+      <!-- Manual clip selection (DESIGN.md §4.1) — outside the live section on purpose -->
+      <div class="card" style="margin-bottom:16px" id="seleccion" th:if="${job.manual}">
+        <div class="card-title" style="margin-bottom:12px">Clips elegidos a mano</div>
+
+        <p th:if="${!sourceReady and selectionEditable}" style="color:var(--text-muted);margin:0">
+          El vídeo se podrá ver aquí cuando termine la descarga. Recarga la página en un rato.
+        </p>
+
+        <th:block th:if="${sourceReady and selectionEditable}">
+          <video id="src-player" controls preload="metadata" style="width:100%;max-height:420px;background:#000;border-radius:6px"
+                 th:src="@{/admin/jobs/{id}/source(id=${job.id})}"></video>
+          <form th:action="@{/admin/jobs/{id}/ranges(id=${job.id})}" method="post" id="range-form"
+                style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
+            <div class="form-group" style="margin-bottom:0">
+              <label for="startS">Inicio (s)</label>
+              <input type="text" id="startS" name="startS" style="width:100px" required/>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="markRange('startS')">⟵ Marcar inicio aquí</button>
+            <div class="form-group" style="margin-bottom:0">
+              <label for="endS">Fin (s)</label>
+              <input type="text" id="endS" name="endS" style="width:100px" required/>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="markRange('endS')">⟵ Marcar fin aquí</button>
+            <input type="hidden" name="resumeAt" id="resumeAt"/>
+            <button type="submit" class="btn btn-primary btn-sm">Añadir clip</button>
+            <span style="font-size:0.8rem;color:var(--text-muted)"
+                  th:text="${'Entre ' + clipMinS + ' s y ' + clipMaxS + ' s por clip'}"></span>
+          </form>
+        </th:block>
+
+        <div class="table-wrap" style="margin-top:12px" th:if="${job.manualRangesJson != null and !job.manualRangesJson.empty}">
+        <table>
+          <thead><tr><th>#</th><th>Inicio</th><th>Fin</th><th>Duración</th><th></th></tr></thead>
+          <tbody>
+            <tr th:each="r, it : ${job.manualRangesJson}">
+              <td th:text="${it.count}"></td>
+              <td th:text="${#numbers.formatDecimal(r.startMs / 1000.0, 1, 1, 'POINT') + ' s'}"></td>
+              <td th:text="${#numbers.formatDecimal(r.endMs / 1000.0, 1, 1, 'POINT') + ' s'}"></td>
+              <td th:text="${#numbers.formatDecimal((r.endMs - r.startMs) / 1000.0, 1, 1, 'POINT') + ' s'}"></td>
+              <td style="display:flex;gap:6px">
+                <button type="button" class="btn btn-secondary btn-sm" th:if="${sourceReady and selectionEditable}"
+                        th:attr="data-start=${r.startMs / 1000.0}" onclick="playFrom(this.dataset.start)">Ver</button>
+                <form th:if="${selectionEditable}" th:action="@{/admin/jobs/{id}/ranges/{i}/delete(id=${job.id},i=${it.index})}" method="post">
+                  <button type="submit" class="btn btn-secondary btn-sm">Quitar</button>
+                </form>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+
+        <form th:if="${selectionEditable and job.manualRangesJson != null and !job.manualRangesJson.empty}"
+              th:action="@{/admin/jobs/{id}/ranges/confirm(id=${job.id})}" method="post" style="margin-top:12px">
+          <button type="submit" class="btn btn-primary"
+                  th:text="${'Confirmar cortes (' + job.manualRangesJson.size() + ')'}"
+                  onclick="return confirm('Una vez confirmados no se pueden cambiar. ¿Seguir?')">Confirmar cortes</button>
+        </form>
+        <p th:if="${job.selectionConfirmed}" style="color:var(--text-muted);margin:8px 0 0;font-size:0.85rem">
+          Cortes confirmados: se convertirán en clips en cuanto termine la transcripción.
+        </p>
+
+        <script th:if="${sourceReady and selectionEditable}">
+          (function () {
+            const player = document.getElementById('src-player');
+            window.markRange = function (field) {
+              document.getElementById(field).value = player.currentTime.toFixed(1);
+            };
+            window.playFrom = function (seconds) {
+              player.currentTime = parseFloat(seconds);
+              player.play();
+            };
+            // Keep the playback position across the form posts
+            document.getElementById('range-form').addEventListener('submit', function () {
+              document.getElementById('resumeAt').value = player.currentTime.toFixed(1);
+            });
+            const t = new URLSearchParams(location.search).get('t');
+            if (t) player.addEventListener('loadedmetadata', function () { player.currentTime = parseFloat(t); }, { once: true });
+          })();
+        </script>
+      </div>
+
+      <!-- Live section: job info + clips + tasks — polled every 6s via hx-select -->
+      <div id="job-live"
+           th:attr="hx-get=@{/admin/jobs/{id}(id=${job.id})}"
+           hx-trigger="every 6s"
+           hx-swap="outerHTML"
+           hx-select="#job-live">
+
+      <!-- Job info -->
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div>
+            <span class="badge" th:classappend="'badge-' + ${job.state.name().toLowerCase()}"
+                  th:text="${job.state}"></span>
+            <strong th:if="${job.title}" th:text="${job.title}" style="margin-left:10px"></strong>
+          </div>
+          <div style="display:flex;gap:8px">
+            <a th:if="${job.state.name() == 'AWAITING_REVIEW'}"
+               th:href="@{/admin/jobs/{id}/review(id=${job.id})}"
+               class="btn btn-primary btn-sm">Revisar cortes</a>
+            <form th:action="@{/admin/jobs/{id}/metadata(id=${job.id})}" method="post"
+                  th:if="${!job.terminal and !clips.empty}">
+              <button type="submit" class="btn btn-secondary btn-sm"
+                      title="Claude vuelve a escribir título, descripción y hashtags de los clips que aún no se han subido"
+                      onclick="return confirm('¿Regenerar títulos y descripciones de los clips que aún no se han subido?')">Regenerar textos</button>
+            </form>
+            <form th:action="@{/admin/jobs/{id}/retry(id=${job.id})}" method="post"
+                  th:if="${!job.terminal and failedTasks > 0}">
+              <button type="submit" class="btn btn-primary btn-sm"
+                      th:text="${'Reintentar tareas fallidas (' + failedTasks + ')'}">Reintentar</button>
+            </form>
+            <form th:action="@{/admin/jobs/{id}/relaunch(id=${job.id})}" method="post"
+                  th:if="${job.terminal and job.state.name() != 'COMPLETED'}">
+              <button type="submit" class="btn btn-primary btn-sm"
+                      onclick="return confirm('¿Crear un trabajo nuevo con el mismo enlace?')">Volver a lanzar</button>
+            </form>
+            <form th:action="@{/admin/jobs/{id}/delete(id=${job.id})}" method="post">
+              <button type="submit" class="btn btn-danger btn-sm"
+                      onclick="return confirm('¿Eliminar este trabajo? Se borran de la base de datos sus clips, publicaciones y estadísticas, y del disco el vídeo y los clips. Lo ya publicado sigue en las plataformas. No se puede deshacer.')">Eliminar</button>
+            </form>
+            <form th:action="@{/admin/jobs/{id}/cancel(id=${job.id})}" method="post"
+                  th:if="${!job.terminal}">
+              <button type="submit" class="btn btn-danger btn-sm"
+                      onclick="return confirm('¿Cancelar este trabajo?')">Cancelar</button>
+            </form>
+          </div>
+        </div>
+        <div th:if="${publishWait}" class="alert alert-info" style="margin-bottom:12px" th:text="${publishWait}"></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;font-size:0.85rem">
+          <div><span style="color:var(--text-muted)">URL</span><br><span style="word-break:break-all" th:text="${job.sourceUrl}"></span></div>
+          <div><span style="color:var(--text-muted)">Plataforma</span><br><span th:text="${job.sourcePlatform ?: '—'}"></span></div>
+          <div><span style="color:var(--text-muted)">Idioma</span><br><span th:text="${job.language ?: '—'}"></span></div>
+          <div><span style="color:var(--text-muted)">FPS</span><br><span th:text="${job.fpsMode ?: '—'}"></span></div>
+          <div><span style="color:var(--text-muted)">Audio</span><br>
+            <span th:text="${job.audioLanguage == null ? 'Original'
+                : (job.dubbedAudioAvailable == null ? 'Doblaje ' + job.audioLanguage + ' (sin comprobar aún)'
+                : (job.dubbedAudioAvailable ? 'Doblaje ' + job.audioLanguage
+                : 'Original (no había doblaje ' + job.audioLanguage + ')'))}"></span></div>
+          <div><span style="color:var(--text-muted)">Duración</span><br><span th:text="${job.durationSeconds != null ? job.durationSeconds + 's' : '—'}"></span></div>
+          <div><span style="color:var(--text-muted)">Resolución</span><br><span th:text="${job.resolution ?: '—'}"></span></div>
+          <div><span style="color:var(--text-muted)">Revisión</span><br><span th:text="${job.reviewMode ? 'Sí' : 'No'}"></span></div>
+          <div><span style="color:var(--text-muted)">Creado</span><br><span th:text="${#temporals.format(job.createdAt,'dd/MM/yyyy HH:mm','UTC')}"></span></div>
+        </div>
+        <div th:if="${job.rejectionReason}" style="margin-top:12px" class="alert alert-error">
+          <strong>Motivo:</strong> <span th:text="${job.rejectionReason}"></span>
+        </div>
+      </div>
+
+      <!-- Clips -->
+      <div class="section-header">
+        <h2>Clips (<span th:text="${clips.size()}">0</span>)</h2>
+      </div>
+      <!-- Editorial plan (DESIGN.md §10.2) -->
+      <div th:if="${analysis != null and analysis.proposedClipsJson == null and job.clipMode.name() == 'AUTO' and !clips.empty}"
+           class="alert alert-warn" style="margin-bottom:12px">
+        Claude no pudo analizar este vídeo y se usó el troceado de emergencia (cada ~60 s por pausas): los clips
+        pueden no tener sentido. Elimínalo y vuelve a lanzarlo para reintentarlo.
+      </div>
+      <details th:if="${analysis != null and analysis.planNotesJson != null and !analysis.planNotesJson.empty}"
+               class="card" style="margin-bottom:12px;font-size:0.85rem">
+        <summary style="cursor:pointer" th:text="${'Ajustes del servidor al plan de Claude (' + analysis.planNotesJson.size() + ')'}"></summary>
+        <ul style="margin:8px 0 0;padding-left:18px">
+          <li th:each="n : ${analysis.planNotesJson}" th:text="${n}"></li>
+        </ul>
+      </details>
+      <div class="table-wrap card" style="padding:0;margin-bottom:16px">
+        <table>
+          <thead><tr><th>#</th><th>Estado</th><th>Título</th><th>FPS</th><th>Duración</th><th>Vídeo</th></tr></thead>
+          <tbody>
+            <tr th:if="${clips.empty}">
+              <td colspan="6" style="text-align:center;color:var(--text-muted);padding:16px">Sin clips planificados aún.</td>
+            </tr>
+            <tr th:each="clip : ${clips}">
+              <td th:text="${clip.clipIndex + 1}"></td>
+              <td><span class="badge" th:classappend="'badge-' + ${clip.state.name().toLowerCase()}" th:text="${clip.state}"></span></td>
+              <td>
+                <div th:if="${clip.sectionTitle}" style="font-size:0.75rem;color:var(--accent)"
+                     th:text="${clip.sectionTitle + (clip.partLabel() != null ? ' · parte ' + clip.partLabel() : '')}"></div>
+                <span th:text="${clip.title ?: '—'}"></span>
+                <div th:if="${clip.overlayTitle}" style="font-size:0.75rem;color:var(--text-muted)"
+                     th:text="${'En pantalla: ' + clip.overlayTitle}"></div>
+              </td>
+              <td th:text="${clip.fps != null ? clip.fps : '—'}"></td>
+              <td th:text="${clip.durationSeconds != null ? clip.durationSeconds + 's' : '—'}"></td>
+              <td>
+                <th:block th:if="${clip.hasVideo()}">
+                  <a th:href="@{/admin/jobs/{j}/clips/{c}/video(j=${job.id},c=${clip.id})}" target="_blank"
+                     class="btn btn-secondary btn-sm">Ver</a>
+                  <a th:href="@{/admin/jobs/{j}/clips/{c}/video(j=${job.id},c=${clip.id},download=true)}"
+                     class="btn btn-secondary btn-sm">Descargar</a>
+                </th:block>
+                <span th:unless="${clip.hasVideo()}" style="color:var(--text-muted)">—</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Publications -->
+      <div class="section-header" th:if="${!posts.empty}">
+        <h2>Publicaciones (<span th:text="${posts.size()}">0</span>)</h2>
+        <form th:if="${failedPosts > 0}" th:action="@{/admin/jobs/{id}/retry-posts(id=${job.id})}" method="post">
+          <button type="submit" class="btn btn-primary btn-sm"
+                  th:text="${'Reintentar publicaciones fallidas (' + failedPosts + ')'}">Reintentar</button>
+        </form>
+      </div>
+      <div class="table-wrap card" style="padding:0;margin-bottom:24px" th:if="${!posts.empty}">
+        <table>
+          <thead><tr><th>Clip</th><th>Plataforma</th><th>Hora (Madrid)</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+            <tr th:each="p : ${posts}">
+              <td th:text="${p.clip.clipIndex + 1}"></td>
+              <td th:text="${p.platform}"></td>
+              <td th:text="${#temporals.format(p.scheduledAt,'dd/MM HH:mm','Europe/Madrid')}"></td>
+              <td>
+                <span class="badge" th:classappend="'badge-' + ${p.state.name().toLowerCase()}" th:text="${@publicationService.stateLabel(p)}"></span>
+                <div th:if="${p.errorMessage != null}" style="font-size:0.75rem;color:#f59e0b"
+                     th:text="${#strings.abbreviate(p.errorMessage, 120)}"></div>
+              </td>
+              <td>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                <a th:if="${postLinks[p.id] != null}" th:href="${postLinks[p.id]}" target="_blank" rel="noopener"
+                   class="btn btn-secondary btn-sm">Abrir</a>
+                <th:block th:if="${p.pendingConfirmation}">
+                  <th:block th:replace="~{admin/_fragments/post-actions :: awaitingActions(${p}, ${'/admin/jobs/' + job.id})}"></th:block>
+                </th:block>
+                <th:block th:if="${p.notStarted}">
+                  <details th:replace="~{admin/_fragments/post-actions :: linkForm(@{/admin/publications/{id}/manual(id=${p.id})},
+                                        'Ya lo subí a mano', 'btn-secondary', 'Marcar', ${'/admin/jobs/' + job.id})}"></details>
+                </th:block>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tasks -->
+      <div class="section-header">
+        <h2>Tareas (<span th:text="${tasks.size()}">0</span>)</h2>
+      </div>
+      <div class="table-wrap card" style="padding:0">
+        <table>
+          <thead><tr><th>Tipo</th><th>Estado</th><th>Progreso</th><th>Intento</th><th>Fallos</th><th>Worker</th></tr></thead>
+          <tbody>
+            <tr th:if="${tasks.empty}">
+              <td colspan="6" style="text-align:center;color:var(--text-muted);padding:16px">Sin tareas.</td>
+            </tr>
+            <tr th:each="task : ${tasks}">
+              <td th:text="${task.type}"></td>
+              <td><span class="badge" th:classappend="'badge-' + ${task.state.name().toLowerCase()}" th:text="${task.state}"></span></td>
+              <td>
+                <span th:if="${task.lastProgressPercent != null}"
+                      th:text="${task.lastProgressPercent + ' % · ' + task.lastProgressPhase}"></span>
+                <span th:if="${task.lastProgressAt != null}" style="font-size:0.8rem;color:var(--text-muted)"
+                      th:text="${'(' + #temporals.format(task.lastProgressAt,'HH:mm:ss','UTC') + ' UTC)'}"></span>
+                <span th:if="${task.lastProgressPercent == null}" style="color:var(--text-muted)">—</span>
+              </td>
+              <td th:text="${task.attempt}"></td>
+              <td th:text="${task.failureCount}"></td>
+              <td th:text="${taskWorker[task.id] ?: '—'}"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      </div><!-- /job-live -->
+    </div>
+  </div>
+</div>
+</body>
+</html>

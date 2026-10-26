@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.raulgl422.cliphive</groupId>
+        <artifactId>cliphive-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>server</artifactId>
+    <packaging>jar</packaging>
+
+    <name>ClipHive Server</name>
+    <description>
+        Spring Boot core: link validation and download, task queue and
+        assignment, Claude analysis, publication scheduler, platform
+        publishers and the superadmin web UI. See docs/DESIGN.md sections
+        3, 12 and 13.
+    </description>
+
+    <!--
+        Not a child of spring-boot-starter-parent: this module already has
+        cliphive-parent (Maven only allows one <parent>). Spring Boot's
+        version management instead comes from the spring-boot-dependencies
+        BOM imported in the root pom's <dependencyManagement>.
+    -->
+    <dependencies>
+        <dependency>
+            <groupId>io.github.raulgl422.cliphive</groupId>
+            <artifactId>protocol</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- REST + embedded server, for the admin/media HTTP connectors (DESIGN.md §3.2) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- SMTP for the email alerts (DESIGN.md §12.3) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
+        <!-- WebSocket coordination with workers (DESIGN.md §7) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
+        <!-- Persistence: Spring Data JPA + Hibernate, Flyway owns the schema (ddl-auto=validate) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <!--
+            Spring Boot 4 modularized autoconfiguration per-feature: Flyway's
+            @AutoConfiguration now lives in this dedicated starter, not just
+            behind "flyway-core being on the classpath" like in Boot 3. Without
+            it, Flyway silently never runs - no error, no log line, just a
+            later SchemaManagementException from Hibernate about a missing
+            table, which is a confusing place to end up debugging this from.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Superadmin web UI: server-rendered, no separate frontend (DESIGN.md §12.1) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+
+        <!-- Login + 2FA for the superadmin (DESIGN.md §12.1, §13) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- Bean Validation (@NotBlank on SubmitJobRequest, @Valid in controllers) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- csrf() and friends for the login/2FA tests through the real filter chain -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Cuts getter/setter boilerplate on JPA entities. -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!--
+            Downloads and runs a real PostgreSQL binary for tests - no Docker
+            needed. Used to actually apply the Flyway migrations and let JPA
+            validate the schema against the entities, since the migrations
+            use real Postgres syntax (jsonb, num_nonnulls) that H2 can't run
+            even in PostgreSQL-compatibility mode.
+
+            io.zonky.test's fork, not the original com.opentable.components -
+            that one's 1.1.x moved to a Testcontainers (Docker-required)
+            backend, which defeats the point on a machine without Docker.
+        -->
+        <!--
+            Test scope: the production jar must not carry it (or the embedded
+            profile's test credentials). The `embedded` Maven profile below puts
+            it back, with src/embedded, for a local run (DESIGN.md §13.1).
+        -->
+        <dependency>
+            <groupId>io.zonky.test</groupId>
+            <artifactId>embedded-postgres</artifactId>
+            <version>2.0.7</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- src/embedded (the "embedded" Spring profile: embedded Postgres and
+                 test credentials) is always on the test classpath; it only
+                 reaches the main jar with -Pembedded. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>embedded-test-sources</id>
+                        <phase>generate-test-sources</phase>
+                        <goals><goal>add-test-source</goal></goals>
+                        <configuration>
+                            <sources><source>src/embedded/java</source></sources>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>embedded-test-resources</id>
+                        <phase>generate-test-resources</phase>
+                        <goals><goal>add-test-resource</goal></goals>
+                        <configuration>
+                            <resources><resource><directory>src/embedded/resources</directory></resource></resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                The hourly file cleanup (DESIGN.md §15) stays off in tests: it
+                would sweep whatever job folders other tests are working with.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <cliphive.cleanup.scheduler-enabled>false</cliphive.cleanup.scheduler-enabled>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            <!--
+                Explicit annotationProcessorPaths: without spring-boot-starter-parent
+                (which wires this up by default), the compiler plugin doesn't pick
+                Lombok up as an annotation processor just because it's a dependency.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.1</version>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <!-- Implementation-Title/Version in the manifest: banner.txt prints them
+                 as ${application.title} and ${application.version}. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <!-- Without spring-boot-starter-parent nothing binds repackage,
+                     so `package` would produce a plain jar with no Main-Class. -->
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- Local tries only: ./mvnw -pl server package -Pembedded, then
+             run that jar with the "embedded" Spring profile (CLAUDE.md, Workflow). -->
+        <profile>
+            <id>embedded</id>
+            <dependencies>
+                <dependency>
+                    <groupId>io.zonky.test</groupId>
+                    <artifactId>embedded-postgres</artifactId>
+                    <version>2.0.7</version>
+                    <scope>compile</scope>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>embedded-main-sources</id>
+                                <phase>generate-sources</phase>
+                                <goals><goal>add-source</goal></goals>
+                                <configuration>
+                                    <sources><source>src/embedded/java</source></sources>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>embedded-main-resources</id>
+                                <phase>generate-resources</phase>
+                                <goals><goal>add-resource</goal></goals>
+                                <configuration>
+                                    <resources><resource><directory>src/embedded/resources</directory></resource></resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

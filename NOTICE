@@ -1,0 +1,27 @@
+ClipHive
+Copyright 2026 RaulGL422 and contributors
+
+This product is licensed under the Apache License, Version 2.0 (see the
+LICENSE file in this repository).
+
+This product includes software developed by third parties. The worker
+installer bundles separate programs and libraries under their own licences,
+among them FFmpeg (LGPL 2.1 or later), whisper.cpp / ggml (MIT), an Eclipse
+Temurin Java runtime and OpenJFX (GPL 2 with the Classpath Exception),
+Logback (LGPL 2.1), SLF4J (MIT), Jackson (Apache 2.0) and SnakeYAML
+(Apache 2.0). The full list, with each component's licence, version and
+source, is in:
+
+    worker/packaging/licenses/THIRD-PARTY-NOTICES.txt
+
+(installed as app\licenses\THIRD-PARTY-NOTICES.txt in the worker's install
+folder, by default C:\Program Files\ClipHive Worker\app\licenses\). The server's own dependencies are resolved by Maven and keep their
+licences and NOTICE files inside their artifacts.
+
+This repository does not include the external tools the server runs (yt-dlp,
+Deno, ffmpeg, Claude Code). They are installed separately, or downloaded by
+the Dockerfile when you build the server image, and are governed by their own
+licences and terms.
+
+ClipHive was developed with substantial AI assistance (Claude, by Anthropic,
+through Claude Code), under the direction and review of its author.

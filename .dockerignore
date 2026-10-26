@@ -1,0 +1,8 @@
+**/target/
+.git/
+.idea/
+.claude/
+graphify-out/
+docs/
+*.env
+.env

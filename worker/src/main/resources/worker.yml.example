@@ -1,0 +1,35 @@
+# ClipHive Worker configuration (docs/DESIGN.md §8.4)
+# Copy to worker.yml in the worker data directory and fill in your values.
+# Environment variables (CLIPHIVE_WORKER_*) override any field here.
+
+# WebSocket URL of the server's worker connector (Tailscale address, port 8082)
+serverUrl: ws://100.x.x.x:8082/ws/worker
+
+# Worker token — generated in the superadmin UI, shown only once.
+# NEVER commit this value to git. Use the CLIPHIVE_WORKER_TOKEN env var instead.
+workerToken: ""
+
+# Where the worker stores task working files and downloaded models.
+# Defaults to %LOCALAPPDATA%\ClipHive\worker on Windows,
+#           ~/.local/share/cliphive/worker on Linux.
+# dataDir: /var/lib/cliphive/worker
+
+# Maximum number of tasks to process at the same time.
+maxConcurrentTasks: 1
+
+# Whisper model to use. "auto" = pick based on detected hardware.
+# Options: auto, base, small, medium, large-v3-turbo
+whisperModel: auto
+
+# H.264 encoder: auto (the best one that passed the startup test), amf, nvenc,
+# vaapi or software. A forced GPU encoder that failed the test falls back to auto.
+forcedEncoder: auto
+
+# Start minimized in the tray when you log in (installed app only).
+startWithSystem: true
+
+# Optional: explicit paths to external binaries, or a bare command name looked
+# up on PATH. Leave blank to use the bundled ones, then PATH.
+# whisperPath: /usr/local/bin/whisper-cli
+# ffmpegPath: /usr/bin/ffmpeg
+# ffprobePath: /usr/bin/ffprobe

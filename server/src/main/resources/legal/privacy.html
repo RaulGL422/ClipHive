@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Política de privacidad · ClipHive</title>
+  <meta name="description" content="Política de privacidad de ClipHive, herramienta personal de publicación de clips.">
+  <style>
+    :root { --bg: #ffffff; --text: #1f2328; --muted: #59636e; --line: #d1d9e0; --link: #0969da; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0d1117; --text: #e6edf3; --muted: #9198a1; --line: #3d444d; --link: #4493f8; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text);
+           font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
+    h1 { font-size: 1.9rem; margin: 0 0 4px; }
+    h2 { font-size: 1.25rem; margin: 36px 0 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+    h3 { font-size: 1.05rem; margin: 20px 0 6px; }
+    p, li { margin: 6px 0; }
+    ul { padding-left: 22px; }
+    a { color: var(--link); }
+    .meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; }
+    .lang { font-size: 0.9rem; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.92rem; margin: 8px 0; }
+    th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+    hr { border: 0; border-top: 2px solid var(--line); margin: 56px 0 24px; }
+  </style>
+</head>
+<body>
+<main>
+
+<p class="lang">Español · <a href="#en">English</a></p>
+
+<h1>Política de privacidad</h1>
+<p class="meta">ClipHive · Última actualización: 8 de octubre de 2026</p>
+
+<p>ClipHive es una herramienta <strong>personal y autoalojada</strong>: corta vídeos en clips verticales con subtítulos
+y los publica en las cuentas de redes sociales de su propio responsable. No es un servicio abierto al público: no hay
+registro de usuarios y solo se conectan las cuentas del responsable. Esta política explica qué datos trata y cómo.</p>
+
+<h2>1. Responsable</h2>
+<p>{{operatorName}}.<br>
+Contacto: <a href="mailto:{{operatorEmail}}">{{operatorEmail}}</a></p>
+
+<h2>2. Datos que se tratan</h2>
+
+<h3>Datos de las plataformas conectadas (YouTube, Instagram, TikTok)</h3>
+<p>Al conectar una cuenta mediante OAuth, ClipHive recibe y guarda:</p>
+<ul>
+  <li><strong>Tokens de acceso</strong> (y de renovación cuando la plataforma los da), para publicar en nombre de la cuenta.</li>
+  <li><strong>Identificador y nombre visible de la cuenta</strong> (por ejemplo, el nombre del canal o el usuario de Instagram).</li>
+  <li><strong>Datos de las publicaciones</strong> que hace ClipHive: identificador, enlace, fecha, título y descripción.</li>
+  <li><strong>Estadísticas</strong> de esas publicaciones y de la cuenta: visualizaciones, me gusta, comentarios, veces
+      compartido o guardado, alcance, tiempo de visualización, porcentaje visto, suscriptores o seguidores y número de
+      publicaciones.</li>
+</ul>
+<p>Permisos que se solicitan y para qué:</p>
+<table>
+  <tr><th>Plataforma</th><th>Permiso</th><th>Uso</th></tr>
+  <tr><td>YouTube</td><td><code>youtube.upload</code></td><td>Subir los clips al canal.</td></tr>
+  <tr><td>YouTube</td><td><code>youtube.readonly</code></td><td>Identificar el canal y leer los contadores de sus vídeos.</td></tr>
+  <tr><td>YouTube</td><td><code>yt-analytics.readonly</code></td><td>Leer el tiempo de visualización y la retención de los vídeos publicados.</td></tr>
+  <tr><td>Instagram</td><td><code>instagram_business_basic</code></td><td>Identificar la cuenta y leer sus estadísticas.</td></tr>
+  <tr><td>Instagram</td><td><code>instagram_business_content_publish</code></td><td>Publicar los clips como Reels.</td></tr>
+  <tr><td>TikTok</td><td><code>user.info.basic</code>, <code>video.upload</code>, <code>video.publish</code></td><td>Identificar la cuenta y subir o publicar los clips.</td></tr>
+</table>
+<p>ClipHive <strong>no</strong> lee mensajes, contactos, listas de seguidores ni contenido que no haya publicado él mismo,
+y no publica nada distinto de los clips que el responsable ha preparado.</p>
+
+<h3>Contenido procesado</h3>
+<p>Los vídeos cuyo enlace introduce el responsable se descargan en su servidor, se transcriben y se cortan en clips.
+Se trata de contenido propio o con permiso de su autor.</p>
+
+<h3>Registros técnicos</h3>
+<p>El servidor guarda registros de funcionamiento (errores, tareas, publicaciones) para poder diagnosticar problemas.
+Las páginas públicas de ClipHive (esta y los términos) no usan cookies ni herramientas de analítica o publicidad.</p>
+
+<h2>3. Finalidad</h2>
+<p>Los datos se usan <strong>únicamente</strong> para publicar los clips en las cuentas del responsable y para mostrarle,
+en su panel privado, cómo funciona cada publicación. No se usan para publicidad, no se venden, no se ceden y no se
+combinan con datos de otras fuentes.</p>
+
+<h2>4. Dónde se guardan y cómo se protegen</h2>
+<ul>
+  <li>Todo se guarda en un <strong>servidor propio del responsable</strong> en España, no en servicios de terceros.</li>
+  <li>Los tokens se guardan <strong>cifrados</strong> (AES-256-GCM) en la base de datos.</li>
+  <li>El panel de administración solo es accesible por el responsable, tras un control de acceso de Cloudflare,
+      contraseña y verificación en dos pasos.</li>
+  <li>Las comunicaciones van cifradas (HTTPS).</li>
+</ul>
+
+<h2>5. Terceros que intervienen</h2>
+<ul>
+  <li><strong>Google (YouTube), Meta (Instagram) y TikTok</strong>: reciben los clips publicados, según sus propias
+      políticas de privacidad.</li>
+  <li><strong>Anthropic (Claude)</strong>: recibe el texto de la transcripción y el título del vídeo para proponer cortes,
+      títulos y descripciones y corregir la transcripción. No recibe tokens ni estadísticas de las cuentas.</li>
+  <li><strong>Cloudflare</strong>: proporciona la conexión segura (túnel) entre Internet y el servidor.</li>
+</ul>
+
+<h2>6. Conservación</h2>
+<ul>
+  <li>Los <strong>ficheros de vídeo</strong> (originales y clips) se guardan en el servidor del responsable mientras hacen
+      falta para procesarlos y publicarlos, y el responsable los elimina cuando ya no son necesarios.</li>
+  <li>Los <strong>tokens</strong> se conservan mientras la cuenta esté conectada y se eliminan al desconectarla.</li>
+  <li>Los <strong>datos de las publicaciones y sus estadísticas</strong> se conservan mientras el responsable use ClipHive,
+      para comparar el rendimiento del contenido. Las estadísticas de cada publicación dejan de recogerse a los 90 días.</li>
+</ul>
+
+<h2>7. Cómo revocar el acceso y borrar los datos</h2>
+<ul>
+  <li>En ClipHive: <em>Cuentas → Desconectar</em> elimina los tokens de esa cuenta y sus estadísticas de cuenta.</li>
+  <li>Google/YouTube: retira el acceso en <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
+  <li>Instagram: <em>Configuración → Seguridad → Apps y sitios web</em>, y elimina ClipHive.</li>
+  <li>TikTok: <em>Ajustes y privacidad → Seguridad → Apps y servicios</em>, y elimina ClipHive.</li>
+  <li>Para borrar todos los datos asociados a una cuenta, escribe a
+      <a href="mailto:{{operatorEmail}}">{{operatorEmail}}</a>. Se eliminarán en un plazo máximo de 30 días
+      y se confirmará por correo.</li>
+</ul>
+
+<h2>8. Servicios de API de Google y YouTube</h2>
+<p>ClipHive usa los Servicios de API de YouTube. Al conectar una cuenta de YouTube se aplican también los
+<a href="https://www.youtube.com/t/terms">Términos del servicio de YouTube</a> y la
+<a href="https://policies.google.com/privacy">Política de privacidad de Google</a>.</p>
+<p>El uso y la transferencia a cualquier otra aplicación de la información recibida de las API de Google se ajustan a la
+<a href="https://developers.google.com/terms/api-services-user-data-policy">Política de datos de usuario de los Servicios
+de API de Google</a>, incluidos los requisitos de uso limitado (<em>Limited Use</em>).</p>
+
+<h2>9. Tus derechos</h2>
+<p>Según el Reglamento General de Protección de Datos puedes pedir el acceso, la rectificación, la supresión, la
+limitación o la portabilidad de tus datos, u oponerte a su tratamiento, escribiendo al correo de contacto. También puedes
+reclamar ante la <a href="https://www.aepd.es">Agencia Española de Protección de Datos</a>.</p>
+
+<h2>10. Menores</h2>
+<p>ClipHive no está dirigido a menores y no trata a sabiendas datos de menores de 14 años.</p>
+
+<h2>11. Cambios</h2>
+<p>Si esta política cambia, se publicará aquí con su nueva fecha de actualización.</p>
+
+<hr>
+
+<section id="en" lang="en">
+<p class="lang"><a href="#">Español</a> · English</p>
+
+<h1>Privacy Policy</h1>
+<p class="meta">ClipHive · Last updated: October 8, 2026</p>
+
+<p>ClipHive is a <strong>personal, self-hosted</strong> tool: it cuts videos into vertical clips with subtitles and
+publishes them to its operator's own social media accounts. It is not a public service: there is no sign-up and only the
+operator's accounts are connected. This policy explains what data it handles and how.</p>
+
+<h2>1. Controller</h2>
+<p>{{operatorName}}.<br>
+Contact: <a href="mailto:{{operatorEmail}}">{{operatorEmail}}</a></p>
+
+<h2>2. Data handled</h2>
+<h3>Data from connected platforms (YouTube, Instagram, TikTok)</h3>
+<p>When an account is connected through OAuth, ClipHive receives and stores:</p>
+<ul>
+  <li><strong>Access tokens</strong> (and refresh tokens when the platform issues them), to publish on the account's behalf.</li>
+  <li><strong>The account's identifier and display name</strong> (e.g. the channel name or Instagram username).</li>
+  <li><strong>Data about the posts ClipHive makes</strong>: identifier, link, date, title and description.</li>
+  <li><strong>Statistics</strong> for those posts and for the account: views, likes, comments, shares, saves, reach,
+      watch time, average percentage viewed, subscribers or followers, and number of posts.</li>
+</ul>
+<p>Permissions requested and why:</p>
+<table>
+  <tr><th>Platform</th><th>Permission</th><th>Use</th></tr>
+  <tr><td>YouTube</td><td><code>youtube.upload</code></td><td>Upload clips to the channel.</td></tr>
+  <tr><td>YouTube</td><td><code>youtube.readonly</code></td><td>Identify the channel and read its videos' counters.</td></tr>
+  <tr><td>YouTube</td><td><code>yt-analytics.readonly</code></td><td>Read watch time and retention of published videos.</td></tr>
+  <tr><td>Instagram</td><td><code>instagram_business_basic</code></td><td>Identify the account and read its insights.</td></tr>
+  <tr><td>Instagram</td><td><code>instagram_business_content_publish</code></td><td>Publish clips as Reels.</td></tr>
+  <tr><td>TikTok</td><td><code>user.info.basic</code>, <code>video.upload</code>, <code>video.publish</code></td><td>Identify the account and upload or publish clips.</td></tr>
+</table>
+<p>ClipHive does <strong>not</strong> read messages, contacts, follower lists or any content it did not publish itself,
+and it publishes nothing other than the clips the operator prepared.</p>
+
+<h3>Processed content</h3>
+<p>Videos whose links the operator submits are downloaded to the operator's server, transcribed and cut into clips. They
+are the operator's own content or content used with its author's permission.</p>
+
+<h3>Technical logs</h3>
+<p>The server keeps operational logs (errors, tasks, posts) to diagnose problems. ClipHive's public pages (this one and
+the terms) use no cookies, analytics or advertising tools.</p>
+
+<h2>3. Purpose</h2>
+<p>The data is used <strong>only</strong> to publish clips to the operator's accounts and to show the operator, in a
+private dashboard, how each post performs. It is not used for advertising, not sold, not shared and not combined with
+data from other sources.</p>
+
+<h2>4. Storage and security</h2>
+<ul>
+  <li>Everything is stored on <strong>a server owned by the operator</strong> in Spain, not on third-party services.</li>
+  <li>Tokens are stored <strong>encrypted</strong> (AES-256-GCM) in the database.</li>
+  <li>The admin dashboard is only reachable by the operator, behind Cloudflare access control, a password and two-factor
+      authentication.</li>
+  <li>All traffic is encrypted (HTTPS).</li>
+</ul>
+
+<h2>5. Third parties involved</h2>
+<ul>
+  <li><strong>Google (YouTube), Meta (Instagram) and TikTok</strong> receive the published clips, under their own privacy policies.</li>
+  <li><strong>Anthropic (Claude)</strong> receives the transcript text and the video title to suggest cuts, titles and
+      descriptions and to correct the transcript. It receives no tokens and no account statistics.</li>
+  <li><strong>Cloudflare</strong> provides the secure connection (tunnel) between the Internet and the server.</li>
+</ul>
+
+<h2>6. Retention</h2>
+<ul>
+  <li><strong>Video files</strong> (sources and clips) are kept on the operator's server while they are needed to process
+      and publish them, and the operator deletes them once they are no longer needed.</li>
+  <li><strong>Tokens</strong> are kept while the account is connected and deleted when it is disconnected.</li>
+  <li><strong>Post data and statistics</strong> are kept while the operator uses ClipHive, to compare how content
+      performs. Statistics stop being collected for each post after 90 days.</li>
+</ul>
+
+<h2>7. Revoking access and deleting data</h2>
+<ul>
+  <li>In ClipHive: <em>Cuentas → Desconectar</em> deletes that account's tokens and account statistics.</li>
+  <li>Google/YouTube: remove access at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
+  <li>Instagram: <em>Settings → Security → Apps and websites</em>, then remove ClipHive.</li>
+  <li>TikTok: <em>Settings and privacy → Security → Apps and services</em>, then remove ClipHive.</li>
+  <li>To delete all data associated with an account, email
+      <a href="mailto:{{operatorEmail}}">{{operatorEmail}}</a>. It will be deleted within 30 days and
+      confirmed by email.</li>
+</ul>
+
+<h2>8. Google and YouTube API Services</h2>
+<p>ClipHive uses the YouTube API Services. Connecting a YouTube account also means agreeing to the
+<a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a>; Google's handling of data is described in the
+<a href="https://policies.google.com/privacy">Google Privacy Policy</a>.</p>
+<p>ClipHive's use and transfer to any other app of information received from Google APIs will adhere to the
+<a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>,
+including the Limited Use requirements.</p>
+
+<h2>9. Your rights</h2>
+<p>Under the General Data Protection Regulation you can request access to, rectification, erasure, restriction or
+portability of your data, or object to its processing, by writing to the contact address. You can also lodge a complaint
+with the Spanish Data Protection Agency (<a href="https://www.aepd.es">AEPD</a>).</p>
+
+<h2>10. Children</h2>
+<p>ClipHive is not aimed at children and does not knowingly handle data of anyone under 14.</p>
+
+<h2>11. Changes</h2>
+<p>If this policy changes, the new version will be published here with its update date.</p>
+</section>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,121 @@
+name: Build whisper.cpp
+
+# Builds whisper.cpp static binaries for all supported targets.
+# Runs on its own (manual) or as part of installer.yml (workflow_call), which
+# bundles the Vulkan build into each installer. Calling it from the installer
+# run keeps the artifacts in the same run, so download-artifact can find them.
+#
+# Matrix: Windows x64 × 2 variants (Vulkan + CPU-only)
+# docs/DESIGN.md §16.4
+
+on:
+  workflow_dispatch:
+    inputs:
+      whisper_ref:
+        description: 'whisper.cpp git ref (tag, branch, or SHA)'
+        default: 'v1.9.4'
+        required: false
+  workflow_call:
+    inputs:
+      whisper_ref:
+        type: string
+        default: 'v1.9.4'
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  # Pinned to a release tag: master can break the build at any time.
+  WHISPER_REF: ${{ inputs.whisper_ref || 'v1.9.4' }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ── Windows x64 ─────────────────────────────────────────────────────
+          - os: windows-latest
+            platform: windows-x64
+            variant: vulkan
+            cmake_flags: -DGGML_VULKAN=ON
+            binary: whisper-cli.exe
+
+          - os: windows-latest
+            platform: windows-x64
+            variant: cpu
+            cmake_flags: ''
+            binary: whisper-cli.exe
+
+          # Linux (x64/arm64) targets are disabled for now — only the Windows
+          # installer is released. Re-add them with spirv-headers installed.
+
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.platform }} / ${{ matrix.variant }}
+
+    steps:
+      - name: Checkout whisper.cpp
+        uses: actions/checkout@v4
+        with:
+          repository: ggml-org/whisper.cpp
+          ref: ${{ env.WHISPER_REF }}
+          path: whisper.cpp
+
+      # ── Windows: install Vulkan SDK ───────────────────────────────────────
+      - name: Install Vulkan SDK (Windows)
+        if: runner.os == 'Windows' && matrix.variant == 'vulkan'
+        # Third-party action pinned to a commit (v1), not a movable tag.
+        uses: jakoch/install-vulkan-sdk-action@d17de7e2f5e50efb5d2123efed18497d3c58c533
+        with:
+          vulkan_version: latest
+          install_runtime: true
+          cache: true
+
+      # ── Linux: install Vulkan dev package ────────────────────────────────
+      - name: Install Vulkan dev (Linux)
+        if: runner.os == 'Linux' && matrix.variant == 'vulkan'
+        run: sudo apt-get update && sudo apt-get install -y libvulkan-dev glslc spirv-headers
+
+      # GGML_NATIVE=OFF: without it ggml compiles for the CI runner's own CPU
+      # (-march=native, possibly AVX-512) and crashes with an illegal
+      # instruction on the user's machine. Static MSVC runtime on Windows so the
+      # exe doesn't need the Visual C++ Redistributable.
+      - name: Configure (CMake)
+        working-directory: whisper.cpp
+        shell: bash
+        run: >
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          -DBUILD_SHARED_LIBS=OFF
+          -DWHISPER_BUILD_EXAMPLES=ON
+          -DWHISPER_BUILD_TESTS=OFF
+          -DGGML_NATIVE=OFF
+          ${{ runner.os == 'Windows' && '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded' || '' }}
+          ${{ matrix.cmake_flags }}
+
+      - name: Build
+        working-directory: whisper.cpp
+        run: cmake --build build --config Release -j4 --target whisper-cli
+
+      # The binary lands in build/bin/ on Linux; build/bin/Release/ on Windows.
+      # Uploaded under its plain name so the installer can bundle it as-is.
+      - name: Collect artifact
+        shell: bash
+        run: |
+          BIN="whisper.cpp/build/bin/${{ matrix.binary }}"
+          WIN="whisper.cpp/build/bin/Release/${{ matrix.binary }}"
+          if [ -f "$WIN" ]; then BIN="$WIN"; fi
+          mkdir -p dist
+          cp "$BIN" "dist/${{ matrix.binary }}"
+          chmod +x "dist/${{ matrix.binary }}" || true
+          # MIT requires the notice to travel with the binary; the first line
+          # records which source the binary was built from.
+          { echo "whisper.cpp $WHISPER_REF — https://github.com/ggml-org/whisper.cpp/tree/$WHISPER_REF"
+            echo; cat whisper.cpp/LICENSE; } > dist/whisper.cpp-LICENSE.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: whisper-${{ matrix.platform }}-${{ matrix.variant }}
+          path: dist/
+          if-no-files-found: error

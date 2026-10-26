@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:insert="~{admin/_fragments/head :: head('Publicaciones')}"></head>
+<body>
+<div class="layout">
+  <div th:insert="~{admin/_fragments/sidebar :: sidebar('publications')}"></div>
+  <div class="main">
+    <div class="topbar"><h1>Publicaciones</h1></div>
+    <div class="content">
+
+      <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+      <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+      <div id="publications-live" hx-get="/admin/publications" hx-trigger="every 8s"
+           hx-swap="outerHTML" hx-select="#publications-live">
+
+        <!-- Accounts -->
+        <div class="stat-grid">
+          <div class="card" th:each="a : ${accounts}">
+            <div class="card-title" th:text="${a.platform}"></div>
+            <div style="font-weight:600" th:text="${a.displayName ?: a.externalAccountId}"></div>
+            <div style="font-size:0.8rem;color:var(--text-muted)"
+                 th:text="${'Conectada el ' + #temporals.format(a.connectedAt,'dd/MM/yyyy','Europe/Madrid')}"></div>
+          </div>
+          <div class="card" th:if="${accounts.empty}">
+            <div class="card-title">Sin cuentas conectadas</div>
+            <a th:href="@{/admin/accounts}" class="btn btn-primary btn-sm">Conectar una cuenta</a>
+          </div>
+        </div>
+
+        <!-- Uploaded as a draft or private, waiting for you (DESIGN.md §11.3) -->
+        <th:block th:if="${!awaiting.empty}">
+        <div class="section-header"><h2 th:text="${'Falta publicar (' + awaiting.size() + ')'}">Falta publicar</h2></div>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin:-4px 0 8px">
+          Subidas como borrador (TikTok) o en privado (YouTube): termínalas en la app y confirma aquí.
+          Si un borrador de TikTok no abre o desaparece, reenvíalo o descárgalo y súbelo a mano.
+        </p>
+        <div class="table-wrap card" style="padding:0;margin-bottom:24px">
+          <table>
+            <thead><tr><th>Subida</th><th>Plataforma</th><th>Título</th><th>Trabajo</th><th></th></tr></thead>
+            <tbody>
+              <tr th:each="p : ${awaiting}">
+                <td th:text="${#temporals.format(p.publishedAt,'dd/MM HH:mm','Europe/Madrid')}"></td>
+                <td th:text="${p.platform}"></td>
+                <td th:text="${p.clip.title ?: ('Clip ' + (p.clip.clipIndex + 1))}"></td>
+                <td><a th:href="@{/admin/jobs/{id}(id=${p.clip.videoJob.id})}" style="color:var(--accent)"
+                       th:text="${#strings.abbreviate(p.clip.videoJob.title ?: p.clip.videoJob.sourceUrl, 40)}"></a></td>
+                <td style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start">
+                  <a th:if="${links[p.id] != null}" th:href="${links[p.id]}" target="_blank" rel="noopener"
+                     class="btn btn-secondary btn-sm">Abrir</a>
+                  <th:block th:replace="~{admin/_fragments/post-actions :: awaitingActions(${p}, '/admin/publications')}"></th:block>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        </th:block>
+
+        <!-- Today's plan (DESIGN.md §10.4) -->
+        <div class="card" style="margin-bottom:24px" th:if="${plannerActive}">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div class="card-title" style="margin:0">Plan de hoy</div>
+            <form th:action="@{/admin/publications/plan}" method="post">
+              <button type="submit" class="btn btn-secondary btn-sm"
+                      onclick="return confirm('¿Replanificar? Se añaden al plan de hoy los clips que quepan; lo ya programado no se mueve.')">Replanificar</button>
+            </form>
+          </div>
+          <div th:if="${plan == null}" style="color:var(--text-muted);font-size:0.85rem;margin-top:8px">
+            Aún no hay plan para hoy: se hace a las 07:00 (o en cuanto el servidor esté en marcha después) y se rehace
+            cuando entran 3 clips nuevos. También puedes pulsar <em>Replanificar</em>.
+          </div>
+          <div th:if="${plan != null}" style="font-size:0.85rem;margin-top:8px">
+            <div>
+              <strong th:text="${plan.source}"></strong>
+              · <span th:text="${plan.scheduled + ' publicación(es) programadas'}"></span>
+              · <span style="color:var(--text-muted)"
+                      th:text="${'hecho a las ' + #temporals.format(plan.createdAt,'HH:mm','Europe/Madrid') + ' (' + plan.trigger + ')'}"></span>
+            </div>
+            <p th:if="${plan.explanation}" th:text="${plan.explanation}" style="margin:8px 0 0"></p>
+            <details th:if="${!plan.adjustments.empty}" style="margin-top:8px">
+              <summary style="cursor:pointer;color:var(--text-muted)"
+                       th:text="${'Ajustes del servidor (' + plan.adjustments.size() + ')'}"></summary>
+              <ul style="margin:6px 0 0;padding-left:18px">
+                <li th:each="a : ${plan.adjustments}" th:text="${a}"></li>
+              </ul>
+            </details>
+          </div>
+        </div>
+
+        <!-- Upcoming -->
+        <div class="section-header"><h2>Programadas y en curso (<span th:text="${upcoming.size()}">0</span>)</h2></div>
+        <div class="table-wrap card" style="padding:0;margin-bottom:24px">
+          <table>
+            <thead><tr><th>Hora (Madrid)</th><th>Plataforma</th><th>Título</th><th>Trabajo</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+              <tr th:if="${upcoming.empty}">
+                <td colspan="6" style="text-align:center;color:var(--text-muted);padding:16px">Nada pendiente.</td>
+              </tr>
+              <tr th:each="p : ${upcoming}">
+                <td th:text="${#temporals.format(p.scheduledAt,'dd/MM HH:mm','Europe/Madrid')}"></td>
+                <td th:text="${p.platform}"></td>
+                <td th:text="${p.clip.title ?: ('Clip ' + (p.clip.clipIndex + 1))}"></td>
+                <td><a th:href="@{/admin/jobs/{id}(id=${p.clip.videoJob.id})}" style="color:var(--accent)"
+                       th:text="${#strings.abbreviate(p.clip.videoJob.title ?: p.clip.videoJob.sourceUrl, 40)}"></a></td>
+                <td>
+                  <span class="badge" th:classappend="'badge-' + ${p.state.name().toLowerCase()}" th:text="${@publicationService.stateLabel(p)}"></span>
+                  <div th:if="${p.postponed and p.errorMessage != null}" style="font-size:0.75rem;color:#f59e0b"
+                       th:text="${'Aplazada: ' + #strings.abbreviate(p.errorMessage, 120)}"></div>
+                  <div th:if="${!p.postponed and p.attempts > 0}" style="font-size:0.75rem;color:#f59e0b"
+                       th:text="${'intento ' + (p.attempts + 1) + ': ' + #strings.abbreviate(p.errorMessage, 80)}"></div>
+                </td>
+                <td>
+                  <div th:if="${p.state.name() == 'SCHEDULED'}" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                    <form th:action="@{/admin/publications/{id}/now(id=${p.id})}" method="post">
+                      <button type="submit" class="btn btn-primary btn-sm">Publicar ahora</button>
+                    </form>
+                    <details>
+                      <summary class="btn btn-secondary btn-sm" style="list-style:none">Cambiar hora</summary>
+                      <form th:action="@{/admin/publications/{id}/reschedule(id=${p.id})}" method="post"
+                            style="display:flex;gap:6px;margin-top:6px">
+                        <input type="datetime-local" name="at" required
+                               th:value="${#temporals.format(p.scheduledAt,'yyyy-MM-dd''T''HH:mm','Europe/Madrid')}"/>
+                        <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+                      </form>
+                    </details>
+                    <a th:href="@{/admin/jobs/{j}/clips/{c}/video(j=${p.clip.videoJob.id},c=${p.clip.id},download=true)}"
+                       class="btn btn-secondary btn-sm">Descargar</a>
+                    <details th:replace="~{admin/_fragments/post-actions :: linkForm(@{/admin/publications/{id}/manual(id=${p.id})},
+                                          'Ya lo subí a mano', 'btn-secondary', 'Marcar', '/admin/publications')}"></details>
+                    <form th:action="@{/admin/publications/{id}/cancel(id=${p.id})}" method="post">
+                      <button type="submit" class="btn btn-secondary btn-sm">Cancelar</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Recent -->
+        <div class="section-header"><h2>Últimas terminadas</h2></div>
+        <div class="table-wrap card" style="padding:0">
+          <table>
+            <thead><tr><th>Actualizada</th><th>Plataforma</th><th>Título</th><th>Trabajo</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+              <tr th:if="${recent.empty}">
+                <td colspan="6" style="text-align:center;color:var(--text-muted);padding:16px">Todavía no se ha publicado nada.</td>
+              </tr>
+              <tr th:each="p : ${recent}">
+                <td th:text="${#temporals.format(p.updatedAt,'dd/MM HH:mm','Europe/Madrid')}"></td>
+                <td th:text="${p.platform}"></td>
+                <td th:text="${p.clip.title ?: ('Clip ' + (p.clip.clipIndex + 1))}"></td>
+                <td><a th:href="@{/admin/jobs/{id}(id=${p.clip.videoJob.id})}" style="color:var(--accent)"
+                       th:text="${#strings.abbreviate(p.clip.videoJob.title ?: p.clip.videoJob.sourceUrl, 40)}"></a></td>
+                <td>
+                  <span class="badge" th:classappend="'badge-' + ${p.state.name().toLowerCase()}" th:text="${@publicationService.stateLabel(p)}"></span>
+                  <div th:if="${p.state.name() == 'FAILED'}" style="font-size:0.75rem;color:#ef4444"
+                       th:text="${#strings.abbreviate(p.errorMessage, 120)}"></div>
+                  <div th:if="${p.pendingConfirmation}"
+                       style="font-size:0.75rem;color:var(--text-muted)">Termínalo en la app y confírmalo arriba</div>
+                </td>
+                <td style="display:flex;gap:6px">
+                  <a th:if="${links[p.id] != null}" th:href="${links[p.id]}" target="_blank" rel="noopener"
+                     class="btn btn-secondary btn-sm">Abrir</a>
+                  <form th:if="${p.state.name() == 'FAILED'}" th:action="@{/admin/publications/{id}/retry(id=${p.id})}" method="post">
+                    <button type="submit" class="btn btn-primary btn-sm">Reintentar</button>
+                  </form>
+                  <th:block th:if="${p.state.name() == 'FAILED'}">
+                    <a th:href="@{/admin/jobs/{j}/clips/{c}/video(j=${p.clip.videoJob.id},c=${p.clip.id},download=true)}"
+                       class="btn btn-secondary btn-sm">Descargar</a>
+                    <details th:replace="~{admin/_fragments/post-actions :: linkForm(@{/admin/publications/{id}/manual(id=${p.id})},
+                                          'Ya lo subí a mano', 'btn-secondary', 'Marcar', '/admin/publications')}"></details>
+                  </th:block>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div><!-- /publications-live -->
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:insert="~{admin/_fragments/head :: head('Trabajos')}"></head>
+<body>
+<div class="layout">
+  <div th:insert="~{admin/_fragments/sidebar :: sidebar('jobs')}"></div>
+  <div class="main">
+    <div class="topbar"><h1>Trabajos</h1></div>
+    <div class="content">
+
+      <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+      <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+      <!-- Submit form -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-title" style="margin-bottom:12px">Nuevo trabajo</div>
+        <form th:action="@{/admin/jobs}" method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+          <div class="form-group" style="flex:1;min-width:260px;margin-bottom:0">
+            <label for="url">URL del vídeo</label>
+            <input type="text" id="url" name="url" placeholder="https://..." required/>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label for="language">Idioma</label>
+            <select id="language" name="language" style="width:90px">
+              <option value="">Auto</option>
+              <option value="es" th:selected="${defaultLanguage=='es'}">ES</option>
+              <option value="en" th:selected="${defaultLanguage=='en'}">EN</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label for="fpsMode">FPS</label>
+            <select id="fpsMode" name="fpsMode" style="width:90px">
+              <option value="auto" th:selected="${defaultFpsMode=='auto'}">Auto</option>
+              <option value="30" th:selected="${defaultFpsMode=='30'}">30</option>
+              <option value="60" th:selected="${defaultFpsMode=='60'}">60</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label for="audioLanguage">Audio</label>
+            <select id="audioLanguage" name="audioLanguage" style="width:150px"
+                    title="Si el vídeo tiene una pista doblada en ese idioma se usa; si no, el audio original.">
+              <option value="">Original</option>
+              <option value="es">Doblaje español</option>
+              <option value="en">Doblaje inglés</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label for="clipMode">Clips</label>
+            <select id="clipMode" name="clipMode" style="width:130px"
+                    title="Automático: Claude elige los clips. Manual: los marcas tú viendo el vídeo.">
+              <option value="AUTO">Automático</option>
+              <option value="MANUAL">Manual</option>
+            </select>
+          </div>
+          <div class="form-group check-group" style="margin-bottom:0">
+            <!-- "_reviewMode" is Spring's checkbox field marker: an unticked box then binds as false
+                 instead of falling back to the default review mode. -->
+            <input type="hidden" name="_reviewMode" value="on"/>
+            <label><input type="checkbox" name="reviewMode" value="true" th:checked="${defaultReviewMode}"/> Revisión</label>
+          </div>
+          <button type="submit" class="btn btn-primary">Enviar</button>
+        </form>
+      </div>
+
+      <!-- Jobs table — polled every 8s -->
+      <div id="jobs-table" class="table-wrap card" style="padding:0"
+           hx-get="/admin/jobs"
+           hx-trigger="every 8s"
+           hx-swap="outerHTML"
+           hx-select="#jobs-table">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Título / URL</th><th>Estado</th><th>Duración</th><th>Creado</th><th></th></tr>
+          </thead>
+          <tbody>
+            <tr th:if="${jobs.content.empty}">
+              <td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px">No hay trabajos.</td>
+            </tr>
+            <tr th:each="job : ${jobs.content}">
+              <td>
+                <a th:href="@{/admin/jobs/{id}(id=${job.id})}"
+                   th:text="${#strings.abbreviate(job.id.toString(),12)}"
+                   style="color:var(--accent)"></a>
+              </td>
+              <td>
+                <div th:if="${job.title}" th:text="${job.title}" style="font-weight:600;margin-bottom:2px"></div>
+                <div style="font-size:0.78rem;color:var(--text-muted)" th:text="${#strings.abbreviate(job.sourceUrl,60)}"></div>
+              </td>
+              <td>
+                <span class="badge" th:classappend="'badge-' + ${job.state.name().toLowerCase()}"
+                      th:text="${job.state}"></span>
+              </td>
+              <td th:text="${job.durationSeconds != null ? job.durationSeconds + 's' : '—'}"></td>
+              <td th:text="${#temporals.format(job.createdAt,'dd/MM HH:mm','UTC')}"></td>
+              <td>
+                <form th:action="@{/admin/jobs/{id}/delete(id=${job.id})}" method="post">
+                  <button type="submit" class="btn btn-danger btn-sm" title="Eliminar trabajo, clips y ficheros"
+                          onclick="return confirm('¿Eliminar este trabajo? Se borran sus clips, publicaciones y estadísticas de la base de datos y sus ficheros del disco. Lo ya publicado sigue en las plataformas. No se puede deshacer.')">Eliminar</button>
+                </form>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div th:if="${jobs.totalPages > 1}" style="display:flex;gap:8px;margin-top:16px">
+        <a th:if="${jobs.hasPrevious()}" th:href="@{/admin/jobs(page=${jobs.number-1})}" class="btn btn-secondary btn-sm">← Anterior</a>
+        <span style="padding:4px 8px;color:var(--text-muted);font-size:0.85rem"
+              th:text="${jobs.number+1} + ' / ' + ${jobs.totalPages}"></span>
+        <a th:if="${jobs.hasNext()}" th:href="@{/admin/jobs(page=${jobs.number+1})}" class="btn btn-secondary btn-sm">Siguiente →</a>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

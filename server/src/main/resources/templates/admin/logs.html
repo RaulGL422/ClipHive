@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:insert="~{admin/_fragments/head :: head('Logs')}"></head>
+<body>
+<div class="layout">
+  <div th:insert="~{admin/_fragments/sidebar :: sidebar('logs')}"></div>
+  <div class="main">
+    <div class="topbar">
+      <h1>Logs</h1>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="sse-status" style="font-size:0.8rem;color:var(--text-muted)">Conectando…</span>
+        <button id="toggle-scroll" class="btn btn-secondary btn-sm">Auto-scroll: ON</button>
+      </div>
+    </div>
+    <div class="content" style="padding:0;display:flex;flex-direction:column;height:calc(100vh - 56px)">
+
+      <!-- Filters -->
+      <form th:action="@{/admin/logs}" method="get"
+            style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--border)">
+        <div class="form-group" style="margin-bottom:0;min-width:100px">
+          <label style="font-size:0.75rem">Nivel</label>
+          <select name="level" style="height:32px;padding:4px 8px">
+            <option value="" th:selected="${filterLevel==''}">Todos</option>
+            <option value="INFO"  th:selected="${filterLevel=='INFO'}">INFO</option>
+            <option value="WARN"  th:selected="${filterLevel=='WARN'}">WARN</option>
+            <option value="ERROR" th:selected="${filterLevel=='ERROR'}">ERROR</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0;flex:1;min-width:140px">
+          <label style="font-size:0.75rem">Componente</label>
+          <input type="text" name="component" th:value="${filterComponent}"
+                 placeholder="p.ej. RenderSetup" style="height:32px;padding:4px 8px"/>
+        </div>
+        <div class="form-group" style="margin-bottom:0;flex:1;min-width:140px">
+          <label style="font-size:0.75rem">Job ID</label>
+          <input type="text" name="jobId" th:value="${filterJobId}"
+                 placeholder="UUID del trabajo" style="height:32px;padding:4px 8px"/>
+        </div>
+        <button type="submit" class="btn btn-secondary btn-sm" style="height:32px">Filtrar</button>
+        <a th:href="@{/admin/logs}" class="btn btn-secondary btn-sm" style="height:32px;line-height:22px">
+          Limpiar
+        </a>
+      </form>
+
+      <!-- Historical + live stream -->
+      <div id="log-live" class="log-stream" style="flex:1;height:auto;border-radius:0;border:none">
+        <div id="log-entries">
+          <div th:each="e : ${logs}" class="log-entry">
+            <span class="log-time" th:text="${#strings.substring(e.createdAt.toString(),11,19)}"></span>
+            <span class="log-level" th:classappend="${e.level}" th:text="${e.level}"></span>
+            <span class="log-component" th:text="${#strings.abbreviate(e.component,25)}"></span>
+            <span class="log-msg" th:text="${e.message}"></span>
+          </div>
+          <div th:if="${logs.empty}" style="color:var(--text-muted)">Sin logs para los filtros seleccionados.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const entries = document.getElementById('log-entries');
+  const liveDiv = document.getElementById('log-live');
+  const status  = document.getElementById('sse-status');
+  const toggle  = document.getElementById('toggle-scroll');
+  let autoScroll = true;
+
+  toggle.addEventListener('click', () => {
+    autoScroll = !autoScroll;
+    toggle.textContent = 'Auto-scroll: ' + (autoScroll ? 'ON' : 'OFF');
+  });
+
+  function scrollDown() { if (autoScroll) liveDiv.scrollTop = liveDiv.scrollHeight; }
+  scrollDown();
+
+  const es = new EventSource('/admin/logs/stream');
+  es.onopen  = () => { status.textContent = '● En vivo'; status.style.color = 'var(--success)'; };
+  es.onerror = () => { status.textContent = '⚠ Desconectado'; status.style.color = 'var(--error)'; };
+  es.onmessage = evt => {
+    const d = JSON.parse(evt.data);
+    const row = document.createElement('div');
+    row.className = 'log-entry';
+    const time = d.time ? d.time.substring(11,19) : '';
+    row.innerHTML =
+      '<span class="log-time">' + time + '</span>' +
+      '<span class="log-level ' + d.level + '">' + d.level + '</span>' +
+      '<span class="log-component">' + (d.component || '').substring(0,25) + '</span>' +
+      '<span class="log-msg">' + (d.message || '') + '</span>';
+    entries.appendChild(row);
+    while (entries.children.length > 500) entries.removeChild(entries.firstChild);
+    scrollDown();
+  };
+</script>
+</body>
+</html>

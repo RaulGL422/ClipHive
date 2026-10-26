@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="sidebar(active)">
+<button type="button" class="nav-toggle" aria-label="Abrir menú" aria-controls="sidebar" aria-expanded="false"
+        onclick="toggleNav()">☰</button>
+<div class="nav-backdrop" onclick="toggleNav(false)"></div>
+<nav class="sidebar" id="sidebar">
+  <a class="sidebar-brand" th:href="@{/admin}">🐝 ClipHive</a>
+  <div class="sidebar-nav">
+    <a th:href="@{/admin}" th:classappend="${active == 'dashboard'} ? 'active'">📊 Dashboard</a>
+    <a th:href="@{/admin/jobs}" th:classappend="${active == 'jobs'} ? 'active'">🎬 Trabajos</a>
+    <a th:href="@{/admin/workers}" th:classappend="${active == 'workers'} ? 'active'">⚙️ Workers</a>
+    <a th:href="@{/admin/publications}" th:classappend="${active == 'publications'} ? 'active'">📤 Publicaciones</a>
+    <a th:href="@{/admin/stats}" th:classappend="${active == 'stats'} ? 'active'">📈 Estadísticas</a>
+    <a th:href="@{/admin/accounts}" th:classappend="${active == 'accounts'} ? 'active'">🔗 Cuentas</a>
+    <a th:href="@{/admin/logs}" th:classappend="${active == 'logs'} ? 'active'">📋 Logs</a>
+    <a th:href="@{/admin/settings}" th:classappend="${active == 'settings'} ? 'active'">🔧 Ajustes</a>
+  </div>
+  <div class="sidebar-footer">
+    <form th:action="@{/logout}" method="post">
+      <button type="submit" class="btn btn-secondary btn-sm" style="width:100%;justify-content:center">Cerrar sesión</button>
+    </form>
+  </div>
+</nav>
+<script>
+  function toggleNav(open) {
+    const on = open === undefined ? !document.body.classList.contains('nav-open') : open;
+    document.body.classList.toggle('nav-open', on);
+    document.querySelector('.nav-toggle').setAttribute('aria-expanded', on);
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') toggleNav(false); });
+</script>
+</th:block>
+</body>
+</html>

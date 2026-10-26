@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.github.raulgl422.cliphive</groupId>
+    <artifactId>cliphive-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>ClipHive</name>
+    <description>
+        Self-hosted pipeline that turns a video link into vertical clips with
+        karaoke subtitles and auto-publishes them to TikTok, Instagram Reels
+        and YouTube Shorts. See docs/DESIGN.md for the full design.
+    </description>
+    <url>https://github.com/RaulGL422/ClipHive</url>
+
+    <licenses>
+        <license>
+            <name>Apache-2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <modules>
+        <module>protocol</module>
+        <module>server</module>
+        <module>worker</module>
+    </modules>
+
+    <properties>
+        <java.version>25</java.version>
+        <maven.compiler.release>${java.version}</maven.compiler.release>
+        <!-- Keep parameter names in bytecode (javac -parameters). Spring MVC
+             needs them to bind @RequestParam/@PathVariable without explicit
+             names; spring-boot-starter-parent sets this, but we don't inherit it. -->
+        <maven.compiler.parameters>true</maven.compiler.parameters>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <spring-boot.version>4.0.7</spring-boot.version>
+        <surefire.version>3.3.1</surefire.version>
+    </properties>
+
+    <!--
+        Versions are managed here so every module (protocol, server, worker)
+        declares a dependency with no <version>, and a bump happens in one
+        place. This does NOT pull Spring Boot into a module - each module
+        still opts in via its own <dependencies>.
+
+        Only ONE BOM here, deliberately: Spring Boot's own dependencyManagement
+        governs Jackson, JUnit, Lombok, etc. for the whole reactor - including
+        protocol, which uses Jackson/JUnit without depending on Spring Boot
+        itself. A previous attempt to also import junit-bom explicitly (for
+        a version protocol could own independently) picked an OLDER JUnit
+        Jupiter than spring-boot-starter-test's own compiled-against version,
+        and server's tests failed at runtime with a JUnit Platform
+        NoSuchMethodError - two BOMs disagreeing on one artifact silently
+        produces a broken classpath, it doesn't fail at build time. If
+        protocol ever needs to pin a version Spring Boot doesn't carry,
+        override it with an explicit <version> on that one dependency instead
+        of reintroducing a second BOM for the same library.
+    -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <!--
+                    Pinned explicitly: an old Maven's default surefire version
+                    may not auto-detect the JUnit 5 (Jupiter) engine.
+                -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${surefire.version}</version>
+                </plugin>
+                <!--
+                    No version here would otherwise warn/fail: this plugin's
+                    version is normally inherited from spring-boot-starter-parent,
+                    which no module here uses (see server/pom.xml's own note).
+                -->
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>

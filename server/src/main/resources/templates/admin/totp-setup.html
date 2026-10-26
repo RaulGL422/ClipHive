@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:insert="~{admin/_fragments/head :: head('Configurar 2FA')}">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+          integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+<div class="layout">
+  <div th:insert="~{admin/_fragments/sidebar :: sidebar('settings')}"></div>
+  <div class="main">
+    <div class="topbar"><h1>Configurar autenticación en dos pasos</h1></div>
+    <div class="content">
+
+      <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+      <div th:if="${secret}" class="card">
+        <p style="margin-bottom:16px">Escanea el código QR con Google Authenticator, Authy o cualquier app TOTP compatible.</p>
+
+        <div id="qrcode" style="margin-bottom:16px"></div>
+        <script th:inline="javascript">
+          new QRCode(document.getElementById('qrcode'), {
+            text: [[${totpUri}]],
+            width: 200, height: 200,
+            colorDark: '#e2e8f0', colorLight: '#1e293b'
+          });
+        </script>
+
+        <p style="margin-bottom:4px;color:var(--text-muted);font-size:0.85rem">O introduce la clave manualmente:</p>
+        <div class="token-box" th:text="${secret}" style="margin-bottom:20px"></div>
+
+        <form th:action="@{/admin/totp/setup}" method="post">
+          <input type="hidden" name="secret" th:value="${secret}"/>
+          <div class="form-group">
+            <label for="code">Confirma con un código de 6 dígitos para activar</label>
+            <input type="text" id="code" name="code" maxlength="6" inputmode="numeric"
+                   pattern="[0-9]{6}" autocomplete="one-time-code" required/>
+          </div>
+          <button type="submit" class="btn btn-primary">Activar 2FA</button>
+        </form>
+      </div>
+
+      <div th:if="${totpEnabled and secret == null}" class="card">
+        <p style="margin-bottom:16px">El 2FA está activo. Para desactivarlo introduce un código válido.</p>
+        <form th:action="@{/admin/totp/disable}" method="post">
+          <div class="form-group">
+            <label for="disable-code">Código de 6 dígitos</label>
+            <input type="text" id="disable-code" name="code" maxlength="6" inputmode="numeric"
+                   pattern="[0-9]{6}" required/>
+          </div>
+          <button type="submit" class="btn btn-danger">Desactivar 2FA</button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

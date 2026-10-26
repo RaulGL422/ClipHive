@@ -1,0 +1,239 @@
+name: Build Installers
+
+# Creates distributable installers of the ClipHive Worker using jpackage.
+# Each installer bundles: the worker JAR (shaded, JavaFX included), a trimmed
+# JRE (jlink), the LGPL ffmpeg/ffprobe static build and the Vulkan whisper-cli
+# for the target platform, all in a bin/ folder next to the jar, which is where
+# WorkerToolLocator looks for them.
+#
+# docs/DESIGN.md §16.4 — the end-user only needs to install GPU drivers + Tailscale.
+#
+# Release: push a tag like `worker-v0.1.0` — the installers are attached to a
+# GitHub release for that tag. A manual run only uploads workflow artifacts.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'worker-v*'
+
+# Read-only by default; only the job that attaches files to the release can write.
+permissions:
+  contents: read
+
+jobs:
+  # Same run as the installers, so download-artifact can fetch the binaries.
+  whisper:
+    uses: ./.github/workflows/whisper-build.yml
+
+  installer:
+    needs: whisper
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows-x64
+            package_type: msi
+            # Pinned build (LGPL needs the exact source of what we ship). BtbN
+            # prunes daily builds after ~2 weeks but keeps the month-end ones.
+            # To update: pick a month-end autobuild-* release, copy the asset
+            # name and the sha256 GitHub shows for it.
+            ffmpeg_release: autobuild-2026-09-30-13-08
+            ffmpeg_asset: ffmpeg-N-127032-g6ae491a26c-win64-lgpl.zip
+            ffmpeg_sha256: c73ad424c5f9d94dd48815b4d3531e57130cb9f5c3dc8f21f4aa4e1fdb0658e3
+
+
+          # Linux .deb targets (linux-x64, linux-arm64) are disabled for now —
+          # only the Windows MSI is released.
+
+    runs-on: ${{ matrix.os }}
+    name: Installer / ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      # jpackage needs a purely numeric version (x.y.z) — taken from the tag.
+      - name: Resolve version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/worker-v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/worker-v}"
+          else
+            VERSION="0.1.0"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Version: $VERSION"
+
+      # ── Build the worker JAR ──────────────────────────────────────────────
+      # With the tests: a release is built from a tag, not only after CI passed.
+      - name: Build and test worker JAR
+        shell: bash
+        run: ./mvnw -B -pl worker -am package
+
+      # ── whisper.cpp binary (built by the whisper job above) ───────────────
+      - name: Download whisper binary
+        uses: actions/download-artifact@v4
+        with:
+          name: whisper-${{ matrix.platform }}-vulkan
+          path: packaging/whisper
+
+      # ── ffmpeg static binary (LGPL build — docs/DESIGN.md §16.5) ──────────
+      - name: Download ffmpeg
+        shell: bash
+        run: |
+          RELEASE="${{ matrix.ffmpeg_release }}"
+          ASSET="${{ matrix.ffmpeg_asset }}"
+          BASE="https://github.com/BtbN/FFmpeg-Builds/releases/download/$RELEASE"
+          mkdir -p packaging/ffmpeg-src packaging/ffmpeg packaging/licenses
+          curl -fsSL "$BASE/$ASSET" -o "packaging/$ASSET"
+          echo "${{ matrix.ffmpeg_sha256 }}  packaging/$ASSET" | sha256sum -c -
+          if [[ "$ASSET" == *.zip ]]; then
+            unzip -q "packaging/$ASSET" -d packaging/ffmpeg-src
+          else
+            tar -xJf "packaging/$ASSET" -C packaging/ffmpeg-src
+          fi
+          find packaging/ffmpeg-src -path '*/bin/*' \( -name 'ffmpeg*' -o -name 'ffprobe*' \) \
+            -exec cp {} packaging/ffmpeg/ \;
+          ls -la packaging/ffmpeg
+          # The build's own licence text, and which source it is (LGPL §6)
+          LICENSE_FILE=$(find packaging/ffmpeg-src -maxdepth 2 -iname 'LICENSE*' | head -1)
+          [ -n "$LICENSE_FILE" ] || { echo "::error::no LICENSE in the ffmpeg build"; exit 1; }
+          cp "$LICENSE_FILE" packaging/licenses/ffmpeg-LICENSE.txt
+          COMMIT=$(echo "$ASSET" | sed -E 's/.*-g([0-9a-f]+)-.*/\1/')
+          {
+            echo "FFmpeg bundled in this installer"
+            echo "Build:   https://github.com/BtbN/FFmpeg-Builds/releases/tag/$RELEASE ($ASSET)"
+            echo "SHA-256: ${{ matrix.ffmpeg_sha256 }}"
+            echo "Source:  https://github.com/FFmpeg/FFmpeg/commit/$COMMIT"
+            echo "Build scripts: https://github.com/BtbN/FFmpeg-Builds/tree/$RELEASE"
+          } > packaging/licenses/ffmpeg-SOURCE.txt
+          cat packaging/licenses/ffmpeg-SOURCE.txt
+
+      # ── Create jlink runtime image ─────────────────────────────────────────
+      # Modules come from jdeps on the shaded jar, plus the ones reached only
+      # through reflection/Unsafe (JavaFX, logback) that jdeps can't see.
+      - name: Create jlink runtime
+        shell: bash
+        run: |
+          JAR=$(ls worker/target/worker-*.jar | grep -v -e original -e shaded | head -1)
+          DEPS=$(jdeps --print-module-deps --ignore-missing-deps --multi-release 25 "$JAR")
+          MODS="$DEPS,java.logging,java.management,java.xml,jdk.unsupported,jdk.charsets"
+          echo "Modules: $MODS"
+          jlink --add-modules "$MODS" \
+                --no-header-files --no-man-pages \
+                --strip-debug \
+                --compress zip-6 \
+                --output packaging/runtime
+
+      # ── Assemble input directory for jpackage ─────────────────────────────
+      - name: Assemble input
+        shell: bash
+        run: |
+          mkdir -p packaging/input/bin
+          # Versioned jar name: on an MSI major upgrade Windows Installer kept the
+          # old (same-named, unversioned) worker.jar instead of copying the new
+          # one, then deleted it with the old product — leaving no jar at all.
+          cp $(ls worker/target/worker-*.jar | grep -v -e original -e shaded | head -1) "packaging/input/worker-$VERSION.jar"
+          cp packaging/ffmpeg/* packaging/input/bin/
+          cp packaging/whisper/whisper-cli* packaging/input/bin/
+          # Licences and notices of everything bundled (worker/packaging/licenses/
+          # THIRD-PARTY-NOTICES.txt explains each one)
+          mkdir -p packaging/input/licenses
+          cp worker/packaging/licenses/* packaging/licenses/* packaging/input/licenses/
+          cp packaging/whisper/whisper.cpp-LICENSE.txt packaging/input/licenses/
+          cp LICENSE packaging/input/licenses/LICENSE.txt
+          # whisper-cli can't report its backend without a model loaded, so
+          # HardwareDetector reads it from this marker next to the binary.
+          echo vulkan > packaging/input/bin/whisper-cli.backend
+          chmod +x packaging/input/bin/* || true
+          ls -la packaging/input packaging/input/bin
+          for f in ffmpeg ffprobe whisper-cli; do
+            ls packaging/input/bin/$f* >/dev/null || { echo "::error::$f missing from bundle"; exit 1; }
+          done
+          for f in LICENSE.txt THIRD-PARTY-NOTICES.txt LGPL-2.1.txt ffmpeg-LICENSE.txt ffmpeg-SOURCE.txt whisper.cpp-LICENSE.txt; do
+            [ -f "packaging/input/licenses/$f" ] || { echo "::error::licenses/$f missing from bundle"; exit 1; }
+          done
+          [ -f packaging/runtime/legal/java.base/LICENSE ] || { echo "::error::jlink runtime has no legal/"; exit 1; }
+
+      # ── jpackage ────────────────────────────────────────────────────────────
+      - name: Run jpackage (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          jpackage \
+            --input packaging/input \
+            --runtime-image packaging/runtime \
+            --name "ClipHive Worker" \
+            --linux-package-name cliphive-worker \
+            --app-version "$VERSION" \
+            --vendor "ClipHive" \
+            --description "ClipHive Worker - transcription and rendering node" \
+            --license-file LICENSE \
+            --main-jar "worker-$VERSION.jar" \
+            --main-class io.github.raulgl422.cliphive.worker.WorkerApplication \
+            --java-options "--enable-native-access=ALL-UNNAMED" \
+            --type ${{ matrix.package_type }} \
+            --dest dist \
+            --linux-shortcut \
+            --linux-menu-group "ClipHive"
+
+      # windows-latest doesn't reliably ship WiX, which jpackage needs for MSI.
+      - name: Install WiX (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add -g WixToolset.Util.wixext/5.0.2
+          wix extension add -g WixToolset.UI.wixext/5.0.2
+          wix --version
+
+      # Fixed upgrade UUID so a newer MSI upgrades the installed version in place.
+      - name: Run jpackage (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          jpackage `
+            --input packaging/input `
+            --runtime-image packaging/runtime `
+            --name "ClipHive Worker" `
+            --app-version "$env:VERSION" `
+            --vendor "ClipHive" `
+            --description "ClipHive Worker - transcription and rendering node" `
+            --main-jar "worker-$env:VERSION.jar" `
+            --main-class io.github.raulgl422.cliphive.worker.WorkerApplication `
+            --java-options "--enable-native-access=ALL-UNNAMED" `
+            --type msi `
+            --dest dist `
+            --license-file LICENSE `
+            --win-upgrade-uuid 6f1c2a4e-8b3d-4e5f-9a7c-2d1e0b9f4c31 `
+            --win-dir-chooser `
+            --win-shortcut `
+            --win-menu `
+            --win-menu-group "ClipHive"
+
+      # ── Upload ───────────────────────────────────────────────────────────────
+      # A tag run attaches the installer to the release instead; a manual run
+      # keeps it as an artifact, and a full storage quota mustn't fail it.
+      - name: Upload installer artifact
+        if: ${{ !startsWith(github.ref, 'refs/tags/worker-v') }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.platform }}
+          path: dist/
+          if-no-files-found: error
+
+      - name: Upload to release
+        if: startsWith(github.ref, 'refs/tags/worker-v')
+        # Third-party action pinned to a commit (v2), not a movable tag.
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+        with:
+          files: dist/*

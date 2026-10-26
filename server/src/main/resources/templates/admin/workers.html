@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:insert="~{admin/_fragments/head :: head('Workers')}"></head>
+<body>
+<div class="layout">
+  <div th:insert="~{admin/_fragments/sidebar :: sidebar('workers')}"></div>
+  <div class="main">
+    <div class="topbar"><h1>Workers</h1></div>
+    <div class="content">
+
+      <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+
+      <!-- New token alert -->
+      <div th:if="${newToken}" class="alert alert-warn">
+        <strong>Token del worker <span th:text="${newWorkerName}"></span></strong>
+        — guárdalo ahora, no se mostrará de nuevo.
+        <div class="token-box" th:text="${newToken}" style="margin-top:8px"></div>
+      </div>
+
+      <!-- Register form -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-title" style="margin-bottom:12px">Registrar worker</div>
+        <form th:action="@{/admin/workers}" method="post" style="display:flex;gap:8px;align-items:flex-end">
+          <div class="form-group" style="flex:1;margin-bottom:0">
+            <label for="name">Nombre del worker</label>
+            <input type="text" id="name" name="name" placeholder="Mi PC, Portátil..." required/>
+          </div>
+          <button type="submit" class="btn btn-primary">Registrar</button>
+        </form>
+      </div>
+
+      <!-- Connected workers -->
+      <div class="section-header">
+        <h2>Conectados (<span th:text="${connected.size()}">0</span>)</h2>
+      </div>
+      <div class="table-wrap card" style="padding:0;margin-bottom:24px"
+           id="connected-workers"
+           hx-get="/admin/workers"
+           hx-trigger="every 8s"
+           hx-swap="outerHTML"
+           hx-select="#connected-workers">
+        <table>
+          <thead><tr><th>Nombre</th><th>Tarea activa</th><th>Estado tarea</th><th>Progreso</th><th>Último heartbeat</th></tr></thead>
+          <tbody>
+            <tr th:if="${connected.empty}">
+              <td colspan="5" style="text-align:center;color:var(--text-muted);padding:16px">Ningún worker conectado.</td>
+            </tr>
+            <tr th:each="cw : ${connected}" th:with="task=${activeTasks[cw.workerId]}">
+              <td th:text="${cw.worker.name}"></td>
+              <td>
+                <span th:if="${task != null}" th:text="${task.type}"></span>
+                <span th:unless="${task != null}" style="color:var(--text-muted)">—</span>
+              </td>
+              <td>
+                <span th:if="${task != null}"
+                      class="badge" th:classappend="'badge-' + ${task.state.name().toLowerCase()}"
+                      th:text="${task.state}"></span>
+                <span th:unless="${task != null}" style="color:var(--text-muted)">inactivo</span>
+              </td>
+              <td th:with="age=${progressAge[cw.workerId]}">
+                <th:block th:if="${task != null}">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <progress max="100" style="width:120px"
+                              th:value="${task.lastProgressPercent != null ? task.lastProgressPercent : 0}"></progress>
+                    <span th:text="${(task.lastProgressPercent != null ? task.lastProgressPercent : 0) + ' %'}">0 %</span>
+                    <span style="color:var(--text-muted)"
+                          th:text="${task.lastProgressPhase != null ? task.lastProgressPhase : 'esperando inicio'}"></span>
+                  </div>
+                  <div th:if="${age != null}" style="font-size:0.8rem"
+                       th:style="${age > stuckAfterSeconds} ? 'font-size:0.8rem;color:#c62828;font-weight:600' : 'font-size:0.8rem;color:var(--text-muted)'"
+                       th:text="${age > stuckAfterSeconds} ? ('⚠ sin avances desde hace ' + ${age} + ' s') : ('último avance hace ' + ${age} + ' s')"></div>
+                </th:block>
+                <span th:unless="${task != null}" style="color:var(--text-muted)">—</span>
+              </td>
+              <td style="font-size:0.8rem;color:var(--text-muted)"
+                  th:text="${#temporals.format(cw.lastHeartbeatAt,'HH:mm:ss','UTC') + ' UTC'}"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- All workers -->
+      <div class="section-header">
+        <h2>Todos los workers</h2>
+      </div>
+      <div class="table-wrap card" style="padding:0" id="all-workers"
+           hx-get="/admin/workers" hx-trigger="every 8s" hx-swap="outerHTML" hx-select="#all-workers">
+        <table>
+          <thead><tr><th>Nombre</th><th>ID</th><th>Registrado</th><th>Estado</th><th>Acción</th></tr></thead>
+          <tbody>
+            <tr th:if="${workers.empty}">
+              <td colspan="5" style="text-align:center;color:var(--text-muted);padding:16px">Ningún worker registrado.</td>
+            </tr>
+            <tr th:each="w : ${workers}">
+              <td th:text="${w.name}"></td>
+              <td th:text="${#strings.abbreviate(w.id.toString(),12)}"></td>
+              <td th:text="${#temporals.format(w.createdAt,'dd/MM/yyyy','UTC')}"></td>
+              <td>
+                <span th:if="${w.revoked}" class="badge badge-error">Revocado</span>
+                <span th:unless="${w.revoked}" class="badge badge-info">Activo</span>
+              </td>
+              <td>
+                <form th:unless="${w.revoked}" th:action="@{/admin/workers/{id}/revoke(id=${w.id})}" method="post"
+                      style="display:inline">
+                  <button type="submit" class="btn btn-danger btn-sm"
+                          onclick="return confirm('¿Revocar este worker?')">Revocar</button>
+                </form>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

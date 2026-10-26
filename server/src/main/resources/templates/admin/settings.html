@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:insert="~{admin/_fragments/head :: head('Ajustes')}"></head>
+<body>
+<div class="layout">
+  <div th:insert="~{admin/_fragments/sidebar :: sidebar('settings')}"></div>
+  <div class="main">
+    <div class="topbar"><h1>Ajustes</h1></div>
+    <div class="content">
+
+      <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+      <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+
+      <form th:action="@{/admin/settings}" method="post">
+
+        <!-- Defaults -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:16px">Valores por defecto de nuevos trabajos</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+            <div class="form-group" style="margin-bottom:0">
+              <label>Idioma por defecto</label>
+              <select name="defaultLanguage">
+                <option value="es" th:selected="${defaultLanguage=='es'}">Español</option>
+                <option value="en" th:selected="${defaultLanguage=='en'}">English</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>FPS por defecto</label>
+              <select name="defaultFpsMode">
+                <option value="auto" th:selected="${defaultFpsMode=='auto'}">Auto</option>
+                <option value="30" th:selected="${defaultFpsMode=='30'}">30 fps</option>
+                <option value="60" th:selected="${defaultFpsMode=='60'}">60 fps</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>Modo revisión por defecto</label>
+              <select name="defaultReviewMode">
+                <option value="false" th:selected="${!defaultReviewMode}">No</option>
+                <option value="true" th:selected="${defaultReviewMode}">Sí</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label title="Claude corrige las palabras que whisper reconoce mal, sin tocar los tiempos">Corregir transcripción con Claude</label>
+              <select name="correctTranscript">
+                <option value="true" th:selected="${correctTranscript}">Sí</option>
+                <option value="false" th:selected="${!correctTranscript}">No</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Clips (DESIGN.md §10.2) -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:16px">Clips</div>
+          <div class="form-group" style="margin-bottom:0;max-width:320px">
+            <label>Cobertura del vídeo</label>
+            <select name="clipsCoverage">
+              <option value="completa" th:selected="${clipsCoverage == 'completa'}">Completa: todo el vídeo, sin saltarse nada</option>
+              <option value="destacados" th:selected="${clipsCoverage == 'destacados'}">Destacados: solo lo mejor (directos largos)</option>
+            </select>
+          </div>
+          <p style="color:var(--text-muted);font-size:13px;margin:8px 0 0">
+            Claude divide el vídeo en secciones; las largas salen como series de partes seguidas (1/3, 2/3…).
+            Solo se quita el relleno: patrocinios, saludos, despedidas y tiempos muertos.
+          </p>
+        </div>
+
+        <!-- Files (DESIGN.md §15) -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:16px">Ficheros</div>
+          <p style="margin:0 0 12px">
+            Los trabajos ocupan <strong th:text="${jobsSize}">0 KB</strong>
+            <th:block th:if="${diskFree}"> · libres en el disco: <strong th:text="${diskFree}"></strong></th:block>
+          </p>
+          <div style="display:flex;gap:16px;flex-wrap:wrap">
+            <div class="form-group" style="margin-bottom:0">
+              <label title="Una publicación fallida guarda su fichero para reintentarla; pasado este tiempo se cancela y se borra">Días con publicaciones fallidas</label>
+              <input type="number" name="filesRetentionDays" th:value="${filesRetentionDays}" min="1"/>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>Días que se guardan los logs</label>
+              <input type="number" name="logsRetentionDays" th:value="${logsRetentionDays}" min="1"/>
+            </div>
+          </div>
+          <p style="color:var(--text-muted);font-size:13px;margin:8px 0 0">
+            Cada hora se borra lo que ya no hace falta: el vídeo original cuando sus clips están renderizados,
+            cada clip cuando se ha publicado en todas sus redes y la carpeta entera cuando el trabajo termina.
+            Nunca se borra un clip que espera publicarse.
+          </p>
+          <button type="submit" class="btn" style="margin-top:12px" th:formaction="@{/admin/settings/cleanup}">
+            Limpiar ahora
+          </button>
+        </div>
+
+        <!-- Subtitles (DESIGN.md §9.2) -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:16px">Subtítulos</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+            <div class="form-group" style="margin-bottom:0">
+              <label title="Distancia desde el borde inferior, en % del alto del vídeo. Por debajo de ~20 % los tapan el texto y los botones de las apps">Altura desde abajo (%)</label>
+              <input type="number" name="subtitlesBottomPercent" th:value="${subtitlesBottomPercent}" min="5" max="60"/>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label title="Frase corta de Claude arriba del vídeo que resume qué se ve (y numera las series)">Título en pantalla</label>
+              <select name="overlayEnabled">
+                <option value="true" th:selected="${overlayEnabled}">Sí</option>
+                <option value="false" th:selected="${!overlayEnabled}">No</option>
+              </select>
+            </div>
+          </div>
+          <p style="color:var(--text-muted);font-size:13px;margin:8px 0 0">
+            Se aplica a los clips que se planifiquen a partir de ahora (no a los ya renderizados).
+          </p>
+        </div>
+
+        <!-- Limits -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:16px">Límites</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+            <div class="form-group" style="margin-bottom:0">
+              <label>Duración máx. vídeo fuente (s)</label>
+              <input type="number" name="videoMaxDurationS" th:value="${videoMaxDurationS}" min="60" max="43200"/>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>Tarea atascada sin progreso (min)</label>
+              <input type="number" name="tasksStallMinutes" th:value="${tasksStallMinutes}" min="5"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Publishing -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:16px">Publicación</div>
+          <div class="form-group">
+            <label>Modo de publicación</label>
+            <select name="publishMode" style="width:200px">
+              <option value="immediate" th:selected="${publishMode=='immediate'}">Inmediato (pruebas)</option>
+              <option value="claude" th:selected="${publishMode=='claude'}">Claude (planificador)</option>
+            </select>
+          </div>
+          <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px">
+            Inmediato: cada clip sale en cuanto se renderiza. Claude: cada día a las 07:00 decide qué clips salen y a
+            qué hora en cada plataforma (se ve en Publicaciones).
+          </p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+            <div class="form-group" style="margin-bottom:0">
+              <label>Separación mínima (min)</label>
+              <input type="number" name="publishMinGapMinutes" th:value="${publishMinGapMinutes}" min="0"/>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>Franjas si Claude falla</label>
+              <input type="text" name="publishDefaultSlots" th:value="${publishDefaultSlots}" placeholder="13:00,20:00"/>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label title="Clips al día cuando la cola no es larga">Clips al día (normal)</label>
+              <input type="number" name="publishClipsPerDay" th:value="${publishClipsPerDay}" min="1" max="20"/>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label title="Clips al día cuando la cola da para muchos días">Clips al día (máximo)</label>
+              <input type="number" name="publishMaxClipsPerDay" th:value="${publishMaxClipsPerDay}" min="1" max="20"/>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label title="Si la cola da para más días que esto al ritmo normal, se sube al máximo">Acelerar con cola de más de (días)</label>
+              <input type="number" name="publishBacklogDays" th:value="${publishBacklogDays}" min="1"/>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label title="Una lista pública por vídeo de origen con sus clips en orden (hace falta reconectar YouTube la primera vez)">YouTube: lista por vídeo</label>
+              <select name="publishPlaylists">
+                <option value="true" th:selected="${publishPlaylists}">Sí</option>
+                <option value="false" th:selected="${!publishPlaylists}">No</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label title="Actívalo solo cuando Google haya aprobado la auditoría de la API: sin ella los vídeos se quedan en privado igualmente">YouTube: app auditada</label>
+              <select name="youtubeAudited">
+                <option value="false" th:selected="${!youtubeAudited}">No (subir en privado)</option>
+                <option value="true" th:selected="${youtubeAudited}">Sí (subir en público)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" style="margin:12px 0 0">
+            <label>Público al que va dirigido</label>
+            <input type="text" name="publishAudience" th:value="${publishAudience}" maxlength="300"
+                   placeholder="España (hora peninsular), público hispanohablante general"/>
+          </div>
+          <p style="color:var(--text-muted);font-size:13px;margin:8px 0 0">
+            Claude elige las horas pensando en este público y en el día (fin de semana, festivos, temporada). Si TikTok
+            no admite más borradores, te llega un email para subir el clip a mano.
+          </p>
+        </div>
+
+        <!-- Email alerts -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:16px">Avisos por email</div>
+          <div th:unless="${smtpConfigured}" class="alert alert-warn" style="margin-bottom:12px">
+            SMTP sin configurar: define <code>CLIPHIVE_SMTP_HOST</code>, <code>CLIPHIVE_SMTP_PASSWORD</code> y
+            <code>CLIPHIVE_SMTP_FROM</code> en el <code>.env</code> (Resend: ver docs/DEPLOY.md). Hasta entonces no se envía ningún aviso.
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+            <div class="form-group" style="margin-bottom:0">
+              <label>Umbral cola baja (clips)</label>
+              <input type="number" name="alertQueueThreshold" th:value="${alertQueueThreshold}" min="0"/>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>Email destinatario</label>
+              <input type="email" name="alertEmail" th:value="${alertEmail}" placeholder="tu@correo.com"/>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>Recordatorio cada N horas (0=desactivado)</label>
+              <input type="number" name="alertReminderHours" th:value="${alertReminderHours}" min="0"/>
+            </div>
+          </div>
+          <p style="color:var(--text-muted);font-size:13px;margin:12px 0 0">
+            Umbral 0 o sin destinatario = aviso desactivado. Se comprueba cada 5 minutos.
+          </p>
+          <button type="submit" class="btn" style="margin-top:12px"
+                  th:formaction="@{/admin/settings/test-email}" th:disabled="${!smtpConfigured}">
+            Enviar email de prueba
+          </button>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Guardar ajustes</button>
+      </form>
+
+      <!-- 2FA section -->
+      <div class="card" style="margin-top:24px">
+        <div class="card-title" style="margin-bottom:12px">Seguridad — 2FA</div>
+        <div th:if="${!encryptionConfigured}" class="alert alert-warn" style="margin-bottom:12px">
+          CLIPHIVE_ENCRYPTION_KEY no está configurado. El 2FA no puede activarse.
+        </div>
+        <div th:if="${totpEnabled}" class="alert alert-success" style="margin-bottom:12px">
+          2FA activado ✓
+        </div>
+        <div th:unless="${totpEnabled}" class="alert alert-info" style="margin-bottom:12px">
+          2FA no activado.
+        </div>
+        <a th:if="${encryptionConfigured}" th:href="@{/admin/totp/setup}" class="btn btn-secondary">
+          <span th:text="${totpEnabled ? 'Gestionar 2FA' : 'Activar 2FA'}">Configurar 2FA</span>
+        </a>
+      </div>
+
+      <!-- Password change (DESIGN.md §12.1) -->
+      <div class="card" style="margin-top:24px">
+        <div class="card-title" style="margin-bottom:12px">Seguridad — Contraseña</div>
+        <form th:action="@{/admin/settings/password}" method="post" style="max-width:360px">
+          <div class="form-group">
+            <label for="currentPassword">Contraseña actual</label>
+            <input type="password" id="currentPassword" name="currentPassword" autocomplete="current-password" required/>
+          </div>
+          <div class="form-group">
+            <label for="newPassword">Contraseña nueva (mínimo 12 caracteres)</label>
+            <input type="password" id="newPassword" name="newPassword" autocomplete="new-password" minlength="12" required/>
+          </div>
+          <div class="form-group">
+            <label for="confirmPassword">Repite la contraseña nueva</label>
+            <input type="password" id="confirmPassword" name="confirmPassword" autocomplete="new-password" minlength="12" required/>
+          </div>
+          <div class="form-group" th:if="${totpEnabled}">
+            <label for="code">Código 2FA</label>
+            <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required/>
+          </div>
+          <button type="submit" class="btn btn-secondary">Cambiar contraseña</button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

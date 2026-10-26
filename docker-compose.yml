@@ -1,0 +1,41 @@
+# ClipHive server — see docs/DEPLOY.md, "Docker" section.
+#
+#   cp .env.example .env   # fill it in
+#   docker compose pull     # the published image (CLIPHIVE_VERSION, default latest)
+#   docker compose up -d
+#   docker compose logs -f
+#
+# `docker compose up -d --build` builds the image from these sources instead.
+services:
+  cliphive:
+    build: .
+    image: ghcr.io/raulgl422/cliphive-server:${CLIPHIVE_VERSION:-latest}
+    container_name: cliphive
+    restart: unless-stopped
+    # Host networking on purpose: the server binds the admin (8080) and media
+    # (8081) connectors to 127.0.0.1 and the worker connector to the Tailscale
+    # IP (docs/DESIGN.md §3.2). With host networking those addresses are the
+    # Pi's own, so cloudflared on the host reach them and nothing else
+    # does — the same security model as the bare-metal install.
+    network_mode: host
+    # Reaps the ffmpeg / yt-dlp / claude child processes the server spawns.
+    init: true
+    # Time for in-flight uploads and worker sessions to close before SIGKILL
+    # (docs/DESIGN.md §16.6, clean shutdown).
+    stop_grace_period: 60s
+    # The default json-file driver never rotates: cap it so logs can't fill the disk.
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    env_file: .env
+    environment:
+      CLIPHIVE_DATA_DIR: /data
+      JAVA_OPTS: ${CLIPHIVE_JAVA_OPTS:--Xms128m -Xmx512m}
+    volumes:
+      - ${CLIPHIVE_DATA_HOST_DIR:-./data}:/data
+      - claude-home:/home/cliphive/.claude
+
+volumes:
+  claude-home:

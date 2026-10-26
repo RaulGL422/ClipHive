@@ -1,0 +1,79 @@
+# Compiled class file
+*.class
+
+# Log file
+*.log
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files #
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+hs_err_pid*
+replay_pid*
+
+# Secrets (.env.example is the only env file that belongs in git)
+*.env
+.env.*
+!.env.example
+# The worker's own config holds its token
+worker.yml
+
+# Certificates and keystores
+*.p12
+*.jks
+*.pem
+*.key
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+
+# Maven build output
+target/
+
+# Eclipse / VS Code (in case contributors use them)
+.classpath
+.project
+.settings/
+.vscode/
+bin/
+
+# Claude Code — personal configuration and runtime state (not the team's)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# graphify — the knowledge graph is a local aid for Claude Code sessions: regenerated
+# with `graphify update .`, never committed (it is large and embeds local details)
+graphify-out/
+
+# graphify — pure build artifacts (extraction cache, token counter)
+graphify-out/cache/
+graphify-out/cost.json
+
+# graphify — dated graph backups before each update (local safety net only)
+graphify-out/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
+
+# graphify — this machine's local paths (Python interpreter, absolute root);
+# not portable across contributors nor valid for the CI runner
+graphify-out/.graphify_python
+graphify-out/.graphify_root
+/data/
+server/data/
+worker/data/

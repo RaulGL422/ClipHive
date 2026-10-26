@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!-- A button that opens a form with an optional link field (DESIGN.md §11.3):
+     "Ya lo subí a mano" and "Ya está publicado". -->
+<details th:fragment="linkForm(action, summary, summaryClass, button, back)">
+  <summary th:class="'btn btn-sm ' + ${summaryClass}" style="list-style:none" th:text="${summary}"></summary>
+  <form th:action="${action}" method="post" style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+    <input type="url" name="url" placeholder="Enlace (opcional)" style="min-width:200px"/>
+    <input type="hidden" name="back" th:value="${back}"/>
+    <button type="submit" class="btn btn-primary btn-sm" th:text="${button}"></button>
+  </form>
+</details>
+
+<!-- Uploaded as a draft or private, waiting for you (DESIGN.md §11.3):
+     download it, send the draft again, or confirm it's public. -->
+<th:block th:fragment="awaitingActions(p, back)" th:with="hasFile=${@publicationService.clipFileExists(p)}">
+  <a th:if="${hasFile}"
+     th:href="@{/admin/jobs/{j}/clips/{c}/video(j=${p.clip.videoJob.id},c=${p.clip.id},download=true)}"
+     class="btn btn-secondary btn-sm">Descargar</a>
+  <form th:if="${hasFile and @publicationService.deliversAsDraft(p.platform)}"
+        th:action="@{/admin/publications/{id}/resend(id=${p.id})}" method="post">
+    <input type="hidden" name="back" th:value="${back}"/>
+    <button type="submit" class="btn btn-secondary btn-sm"
+            onclick="return confirm('¿Reenviar el borrador a la bandeja de TikTok?')">Reenviar borrador</button>
+  </form>
+  <details th:replace="~{admin/_fragments/post-actions :: linkForm(@{/admin/publications/{id}/confirm(id=${p.id})},
+                        'Ya está publicado', 'btn-primary', 'Confirmar', ${back})}"></details>
+</th:block>
+
+</body>
+</html>

@@ -1,0 +1,72 @@
+ClipHive Worker — third-party notices
+=====================================
+
+ClipHive itself is licensed under the Apache License 2.0 (LICENSE.txt in this
+folder). The installer also bundles the components below, each under its own
+licence. They run as separate programs (ffmpeg, ffprobe, whisper-cli) or are
+libraries inside worker-<version>.jar; none of them is modified.
+
+The exact ffmpeg build and its source are recorded in ffmpeg-SOURCE.txt.
+
+
+1. FFmpeg (ffmpeg.exe, ffprobe.exe in bin/)
+   Licence:  GNU LGPL 2.1 or later — LGPL build, no GPL or non-free parts.
+             Full text: ffmpeg-LICENSE.txt (shipped with the build) and LGPL-2.1.txt.
+   Build:    BtbN/FFmpeg-Builds, see ffmpeg-SOURCE.txt for the release and commit.
+   Source:   https://github.com/FFmpeg/FFmpeg (commit in ffmpeg-SOURCE.txt)
+             Build scripts: https://github.com/BtbN/FFmpeg-Builds
+   You may replace these binaries with any other ffmpeg build: set ffmpegPath /
+   ffprobePath in worker.yml (or CLIPHIVE_WORKER_FFMPEG_PATH / _FFPROBE_PATH).
+
+2. whisper.cpp / ggml (whisper-cli.exe in bin/, Vulkan build)
+   Licence:  MIT — full text: whisper.cpp-LICENSE.txt
+   Source:   https://github.com/ggml-org/whisper.cpp (the tag is on the first line
+             of whisper.cpp-LICENSE.txt)
+
+3. Java runtime (runtime/ — trimmed Eclipse Temurin 25 made with jlink)
+   Licence:  GNU GPL 2 with the Classpath Exception
+             Full texts and notices: runtime/legal/
+   Source:   https://github.com/adoptium/jdk25u
+
+4. OpenJFX 25 (javafx-base, javafx-controls, javafx-graphics, inside the jar)
+   Licence:  GNU GPL 2 with the Classpath Exception — same text as
+             runtime/legal/java.base/LICENSE
+   Source:   https://github.com/openjdk/jfx (tag 25)
+
+5. Logback 1.5.34 (logback-classic, logback-core, inside the jar)
+   Licence:  dual EPL 1.0 / GNU LGPL 2.1 — distributed here under the LGPL 2.1
+             (LGPL-2.1.txt)
+   Source:   https://github.com/qos-ch/logback
+
+6. SLF4J API 2.0.18 (inside the jar)
+   Licence:  MIT
+     Copyright (c) 2004-2022 QOS.ch Sarl (Switzerland). All rights reserved.
+     Permission is hereby granted, free of charge, to any person obtaining a copy
+     of this software and associated documentation files (the "Software"), to deal
+     in the Software without restriction, including without limitation the rights
+     to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+     copies of the Software, and to permit persons to whom the Software is
+     furnished to do so, subject to the following conditions:
+     The above copyright notice and this permission notice shall be included in
+     all copies or substantial portions of the Software.
+     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+     IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+     FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+     AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+     SOFTWARE.
+   Source:   https://github.com/qos-ch/slf4j
+
+7. Jackson 3.1.4 (jackson-core, jackson-databind) and jackson-annotations 2.21
+   Licence:  Apache License 2.0 (LICENSE.txt); notices merged in the jar's
+             META-INF/NOTICE. jackson-core embeds FastDoubleParser
+             (MIT, Copyright 2018-2020 Raffaello Giulietti and Werner Randelshofer).
+   Source:   https://github.com/FasterXML
+
+8. SnakeYAML 2.5 (inside the jar)
+   Licence:  Apache License 2.0 (LICENSE.txt)
+   Source:   https://bitbucket.org/snakeyaml/snakeyaml
+
+Not bundled: the whisper models (ggml-*.bin, MIT, downloaded from Hugging Face
+on first run with their SHA-256 checked) and the GPU drivers.

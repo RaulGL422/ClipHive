@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head th:insert="~{admin/_fragments/head :: head('Error')}"></head>
+<body>
+<!--/* Replaces Spring's default error page. Only the status and its short reason
+       are shown: no message, exception or stack trace reaches the browser. */-->
+<div class="login-wrap">
+  <div class="login-card">
+    <h1>🐝 ClipHive</h1>
+    <p class="subtitle" th:text="${status} + ' · ' + ${error}">404 · Not Found</p>
+
+    <div class="alert alert-error" th:switch="${status}">
+      <span th:case="404">Esa página no existe.</span>
+      <span th:case="403">No tienes acceso a esta página.</span>
+      <span th:case="*">Algo ha fallado en el servidor. Los detalles están en los logs.</span>
+    </div>
+
+    <a th:href="@{/admin}" class="btn btn-primary">Volver al panel</a>
+  </div>
+</div>
+</body>
+</html>
