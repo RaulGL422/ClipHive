@@ -114,7 +114,7 @@ jobs:
             echo; cat whisper.cpp/LICENSE; } > dist/whisper.cpp-LICENSE.txt
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: whisper-${{ matrix.platform }}-${{ matrix.variant }}
           path: dist/
