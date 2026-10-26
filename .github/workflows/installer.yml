@@ -82,7 +82,7 @@ jobs:
 
       # ── whisper.cpp binary (built by the whisper job above) ───────────────
       - name: Download whisper binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: whisper-${{ matrix.platform }}-vulkan
           path: packaging/whisper
