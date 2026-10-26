@@ -15,7 +15,7 @@
 # rebuild gets the same JDK; bump both FROM lines together.
 # The jar doesn't depend on the CPU, so a cross-build (amd64 runner making the
 # arm64 image) compiles it natively and only emulates the runtime stage.
-FROM --platform=$BUILDPLATFORM eclipse-temurin:25.0.4.1_1-jdk-noble AS build
+FROM --platform=$BUILDPLATFORM eclipse-temurin:26.0.2.1_1-jdk-noble AS build
 WORKDIR /src
 
 # Set by the release workflow from the server-vX.Y.Z tag; empty keeps the pom's.
@@ -45,7 +45,7 @@ RUN --mount=type=cache,target=/root/.m2 \
     && cp server/target/server-*.jar /app.jar
 
 # ── Runtime stage ────────────────────────────────────────────
-FROM eclipse-temurin:25.0.4.1_1-jre-noble
+FROM eclipse-temurin:26.0.2.1_1-jre-noble
 
 LABEL org.opencontainers.image.title="ClipHive server" \
       org.opencontainers.image.source="https://github.com/RaulGL422/ClipHive" \
