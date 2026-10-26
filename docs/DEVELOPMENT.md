@@ -17,7 +17,7 @@ No Docker is needed for the tests: the server tests start an embedded PostgreSQL
 
 ```
 ClipHive/
-├── pom.xml              parent POM: modules, Java 25, Spring Boot 4.0.7 BOM (groupId io.github.raulgl422.cliphive)
+├── pom.xml              parent POM: modules, Java 25, Spring Boot 4.1.2 BOM (groupId io.github.raulgl422.cliphive)
 ├── protocol/            WebSocket messages, DTOs and state enums (no business logic)
 ├── server/              Spring Boot application + superadmin
 │   ├── src/main/java/io/github/raulgl422/cliphive/server/
