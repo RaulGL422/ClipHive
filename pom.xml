@@ -40,8 +40,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <spring-boot.version>4.0.7</spring-boot.version>
-        <surefire.version>3.3.1</surefire.version>
+        <spring-boot.version>4.1.2</spring-boot.version>
+        <surefire.version>3.6.1</surefire.version>
     </properties>
 
     <!--
